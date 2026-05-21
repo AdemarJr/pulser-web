@@ -1,0 +1,128 @@
+import { z } from "zod";
+import {
+  cepSchema,
+  cpfSchema,
+  emailOpcionalSchema,
+  isValidCPF,
+  nomeSchema,
+  telefoneOpcionalSchema,
+  telefoneSchema,
+  uuidRequired,
+} from "@/lib/validators/common";
+
+const eleitorCamposComuns = {
+  nome_completo: nomeSchema,
+  nome_social: z.string().trim().max(200).optional().or(z.literal("")),
+  data_nascimento: z
+    .string()
+    .min(1, "Data de nascimento obrigatória")
+    .refine((d) => !Number.isNaN(Date.parse(d)), "Data inválida")
+    .refine((d) => new Date(d) <= new Date(), "Data não pode ser futura"),
+  sexo: z.enum(["masculino", "feminino", "outro", "nao_informar"]),
+  cpf: cpfSchema,
+  rg: z
+    .string()
+    .min(1, "RG obrigatório")
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 5, "RG inválido"),
+  telefone_principal: telefoneSchema,
+  telefone_secundario: telefoneOpcionalSchema,
+  email: emailOpcionalSchema,
+  cep: cepSchema,
+  logradouro: z.string().trim().min(2, "Logradouro obrigatório").max(200),
+  numero: z.string().trim().min(1, "Número obrigatório").max(20),
+  complemento: z.string().trim().max(100).optional().or(z.literal("")),
+  cidade_id: uuidRequired("Município"),
+  estado_id: uuidRequired("Estado"),
+  titulo_eleitor: z
+    .string()
+    .min(1, "Título obrigatório")
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 12, "Título de eleitor inválido"),
+  secao_eleitoral: z
+    .string()
+    .min(1, "Seção obrigatória")
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 1 && v.length <= 4, "Seção inválida"),
+  municipio_eleitoral: z.string().trim().min(2, "Município eleitoral obrigatório"),
+  situacao_eleitoral: z
+    .enum(["regular", "suspensa", "cancelada", "pendente", "outra"])
+    .default("regular"),
+  local_votacao: z.string().trim().max(200).optional().or(z.literal("")),
+  lideranca_responsavel: z.string().trim().max(200).optional().or(z.literal("")),
+  grupo_politico: z.string().trim().max(100).optional().or(z.literal("")),
+  observacoes: z.string().trim().max(2000).optional().or(z.literal("")),
+  prioridade: z.coerce.number().min(0).max(10).default(0),
+  categoria: z.string().trim().max(50).optional().or(z.literal("")),
+  situacao: z
+    .enum(["ativo", "inativo", "pendente", "falecido", "mudou_cidade"])
+    .default("pendente"),
+} as const;
+
+/** Dados já com bairro_id e zona_eleitoral_id resolvidos (insert no banco). */
+export const eleitorPersistSchema = z.object({
+  ...eleitorCamposComuns,
+  bairro_id: uuidRequired("Bairro"),
+  zona_eleitoral_id: uuidRequired("Zona eleitoral"),
+});
+
+export const eleitorSchema = z.object({
+  ...eleitorCamposComuns,
+  bairro_id: z.string().uuid().optional().or(z.literal("")),
+  novo_bairro_nome: z.string().trim().max(150).optional().or(z.literal("")),
+  zona_eleitoral_id: z.string().uuid().optional().or(z.literal("")),
+  nova_zona_numero: z.coerce.number().int().positive().optional(),
+})
+  .superRefine((data, ctx) => {
+    const temBairro = Boolean(data.bairro_id) || Boolean(data.novo_bairro_nome?.trim());
+    const temZona = Boolean(data.zona_eleitoral_id) || Boolean(data.nova_zona_numero);
+    if (!temBairro) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bairro_id"],
+        message: "Selecione um bairro ou informe o nome de um novo",
+      });
+    }
+    if (!temZona) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["zona_eleitoral_id"],
+        message: "Selecione uma zona ou informe o número de uma nova",
+      });
+    }
+  });
+
+export type EleitorFormData = z.infer<typeof eleitorSchema>;
+export type EleitorFormInput = z.input<typeof eleitorSchema>;
+
+const loginEmailSchema = z
+  .string()
+  .trim()
+  .transform((value) => (value === "admin" ? "admin@admin.com" : value))
+  .pipe(z.string().email("E-mail inválido"));
+
+export const loginSchema = z.object({
+  email: loginEmailSchema,
+  password: z.string().min(1, "Informe a senha"),
+});
+
+export const recuperarSenhaSchema = z.object({
+  email: z.string().trim().email("E-mail inválido"),
+});
+
+export const usuarioSchema = z.object({
+  nome_completo: nomeSchema,
+  email: z.string().trim().email("E-mail inválido"),
+  telefone: telefoneOpcionalSchema,
+  cpf: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.replace(/\D/g, "") : ""))
+    .refine((v) => !v || isValidCPF(v), "CPF inválido"),
+  perfil_id: z.string().uuid("Perfil inválido"),
+  status: z.enum(["ativo", "inativo", "bloqueado"]).default("ativo"),
+  password: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length >= 8, "Senha deve ter no mínimo 8 caracteres"),
+});
