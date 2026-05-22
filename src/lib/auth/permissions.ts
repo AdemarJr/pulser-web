@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   RELATORIOS_EXPORTAR: "relatorios.exportar",
   AUDITORIA_VISUALIZAR: "auditoria.visualizar",
   DASHBOARD_VISUALIZAR: "dashboard.visualizar",
+  PORTAL_GERENCIAR: "portal.gerenciar",
+  PORTAL_VISUALIZAR: "portal.visualizar",
 } as const;
 
 export type PermissionSlug =
@@ -22,6 +24,7 @@ export type PermissionSlug =
 export const PERFIL_PERMISSIONS: Record<string, PermissionSlug[]> = {
   admin_geral: Object.values(PERMISSIONS),
   coordenador: [
+    PERMISSIONS.PORTAL_VISUALIZAR,
     PERMISSIONS.USUARIOS_GERENCIAR,
     PERMISSIONS.USUARIOS_VISUALIZAR,
     PERMISSIONS.ELEITORES_VISUALIZAR,

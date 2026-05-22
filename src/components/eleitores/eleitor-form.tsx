@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BairroZonaFields } from "@/components/eleitores/bairro-zona-fields";
+import { CidadeCadastroFields } from "@/components/eleitores/cidade-cadastro-fields";
 import { FormField, FormSelect } from "@/components/forms/form-field";
 import { unwrapTerritorioList } from "@/lib/api/territorio-cadastro";
 import { eleitorSchema, type EleitorFormInput } from "@/lib/validators/eleitor";
@@ -34,6 +35,7 @@ const emptyDefaults: EleitorFormInput = {
   complemento: "",
   bairro_id: "",
   novo_bairro_nome: "",
+  cidade_cadastro_id: "",
   cidade_id: "",
   estado_id: "",
   titulo_eleitor: "",
@@ -67,6 +69,13 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
   const [submitError, setSubmitError] = useState("");
   const [loadingBairros, setLoadingBairros] = useState(false);
   const [loadingZonas, setLoadingZonas] = useState(false);
+  const [municipiosCadastro, setMunicipiosCadastro] = useState<{ id: string; nome: string }[]>(
+    []
+  );
+  const [estadoCadastroId, setEstadoCadastroId] = useState("");
+  const [eleitorNoMesmoMunicipio, setEleitorNoMesmoMunicipio] = useState(false);
+  const [lembrarCidadePadrao, setLembrarCidadePadrao] = useState(false);
+  const [showCidadeCadastro, setShowCidadeCadastro] = useState(true);
 
   const {
     register,
@@ -86,12 +95,59 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
 
   const estadoId = watch("estado_id");
   const cidadeId = watch("cidade_id");
+  const cidadeCadastroId = watch("cidade_cadastro_id");
 
   useEffect(() => {
     fetch("/api/territorio/estados")
       .then((r) => r.json())
       .then((j) => j.success && setEstados(unwrapTerritorioList(j.data)));
-  }, []);
+
+    if (mode === "create") {
+      fetch("/api/auth/me", { credentials: "include" })
+        .then((r) => r.json())
+        .then((j) => {
+          if (!j.success) return;
+          const slug = j.data.perfil?.slug;
+          setShowCidadeCadastro(
+            slug === "cadastrador" ||
+              slug === "coordenador" ||
+              slug === "admin_geral" ||
+              (j.data.permissions ?? []).includes("eleitores.criar")
+          );
+          const padrao = j.data.cidadeCadastroPadrao as
+            | { id: string; nome: string; estado_id: string }
+            | null;
+          if (padrao?.id) {
+            setEstadoCadastroId(padrao.estado_id);
+            setValue("cidade_cadastro_id", padrao.id, { shouldValidate: true });
+          }
+        });
+    }
+  }, [mode, setValue]);
+
+  useEffect(() => {
+    if (mode === "edit" && initialValues?.cidade_cadastro_id && !estadoCadastroId) {
+      fetch(`/api/territorio/cidades/${initialValues.cidade_cadastro_id}`, {
+        credentials: "include",
+      })
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.success && j.data.estado_id) {
+            setEstadoCadastroId(j.data.estado_id);
+          }
+        });
+    }
+  }, [mode, initialValues?.cidade_cadastro_id, estadoCadastroId]);
+
+  useEffect(() => {
+    if (!estadoCadastroId) {
+      setMunicipiosCadastro([]);
+      return;
+    }
+    fetch(`/api/territorio/municipios?estado_id=${estadoCadastroId}`)
+      .then((r) => r.json())
+      .then((j) => j.success && setMunicipiosCadastro(unwrapTerritorioList(j.data)));
+  }, [estadoCadastroId]);
 
   useEffect(() => {
     if (!estadoId) {
@@ -144,11 +200,66 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
       setSubmitError(json.error ?? "Erro ao salvar");
       return;
     }
+
+    if (mode === "create" && lembrarCidadePadrao && data.cidade_cadastro_id) {
+      await fetch("/api/auth/cidade-cadastro-padrao", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cidade_id: data.cidade_cadastro_id }),
+      });
+    }
+
     onSuccess(json.data?.id ?? eleitorId ?? "");
+  }
+
+  function handleEleitorNoMesmoMunicipio(checked: boolean) {
+    setEleitorNoMesmoMunicipio(checked);
+    if (checked && cidadeCadastroId && estadoCadastroId) {
+      const m = municipiosCadastro.find((x) => x.id === cidadeCadastroId);
+      setValue("estado_id", estadoCadastroId, { shouldValidate: true });
+      setValue("cidade_id", cidadeCadastroId, { shouldValidate: true });
+      setValue("municipio_eleitoral", m?.nome ?? "", { shouldValidate: true });
+    }
+  }
+
+  function handleEstadoCadastroChange(estadoIdNovo: string) {
+    setEstadoCadastroId(estadoIdNovo);
+    setValue("cidade_cadastro_id", "", { shouldValidate: true });
+    if (eleitorNoMesmoMunicipio) {
+      setValue("estado_id", estadoIdNovo, { shouldValidate: true });
+      setValue("cidade_id", "");
+      setValue("municipio_eleitoral", "");
+    }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="mx-auto w-full max-w-4xl space-y-6">
+      {showCidadeCadastro && (
+        <Card className="border-blue-200 dark:border-blue-900">
+          <CardHeader>
+            <CardTitle>Cidade do cadastro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CidadeCadastroFields
+              estados={estados}
+              municipiosCadastro={municipiosCadastro}
+              estadoCadastroId={estadoCadastroId}
+              cidadeCadastroId={cidadeCadastroId}
+              errors={errors}
+              watch={watch}
+              setValue={setValue}
+              onEstadoCadastroChange={handleEstadoCadastroChange}
+              eleitorNoMesmoMunicipio={eleitorNoMesmoMunicipio}
+              onEleitorNoMesmoMunicipioChange={handleEleitorNoMesmoMunicipio}
+              lembrarCidadePadrao={lembrarCidadePadrao}
+              onLembrarCidadePadraoChange={setLembrarCidadePadrao}
+              showLembrarPadrao={mode === "create"}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Dados pessoais</CardTitle>
@@ -260,7 +371,7 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
           </FormSelect>
 
           <FormSelect
-            label="Município"
+            label="Município do eleitor"
             required
             error={errors.cidade_id}
             disabled={!estadoId}

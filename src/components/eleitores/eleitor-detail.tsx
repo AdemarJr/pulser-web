@@ -40,6 +40,7 @@ type Props = {
   eleitor: Eleitor & {
     cadastrador?: { nome_completo: string } | { nome_completo: string }[] | null;
     cidade?: { nome: string; estado?: { sigla: string; nome: string } } | null;
+    cidade_cadastro?: { nome: string; estado?: { sigla: string } } | null;
   };
   auth: AuthMe;
   onDelete: () => void;
@@ -51,6 +52,11 @@ export function EleitorDetail({ eleitor, auth, onDelete, deleting }: Props) {
   const cidade = (eleitor.cidade as { nome: string } | undefined)?.nome ?? "—";
   const estadoRel = eleitor.cidade as { estado?: { sigla: string } } | undefined;
   const uf = estadoRel?.estado?.sigla ?? "—";
+  const cidadeCadastro =
+    (eleitor.cidade_cadastro as { nome: string; estado?: { sigla: string } } | undefined)?.nome ??
+    "—";
+  const ufCadastro =
+    (eleitor.cidade_cadastro as { estado?: { sigla: string } } | undefined)?.estado?.sigla ?? "";
   const zona = (eleitor.zona_eleitoral as { numero: number } | undefined)?.numero ?? "—";
   const cadastrador = eleitor.cadastrador as { nome_completo: string } | { nome_completo: string }[] | null | undefined;
   const cadastradorNome = Array.isArray(cadastrador)
@@ -111,6 +117,10 @@ export function EleitorDetail({ eleitor, auth, onDelete, deleting }: Props) {
         />
         <Field label="E-mail" value={eleitor.email ?? "—"} />
         <Field label="Cadastrado por" value={cadastradorNome ?? "—"} />
+        <Field
+          label="Cidade do cadastro"
+          value={ufCadastro ? `${cidadeCadastro} / ${ufCadastro}` : cidadeCadastro}
+        />
       </Section>
 
       <Section title="Endereço">

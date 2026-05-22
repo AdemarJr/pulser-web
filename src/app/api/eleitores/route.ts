@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from("eleitores")
       .select(
-        `*, bairro:bairros(nome), cidade:cidades(nome), zona_eleitoral:zonas_eleitorais(numero)`,
+        `*, bairro:bairros(nome), cidade:cidades(nome), cidade_cadastro:cidades!cidade_cadastro_id(nome, estado:estados(sigla)), zona_eleitoral:zonas_eleitorais(numero)`,
         { count: "exact" }
       )
       .is("deleted_at", null)
@@ -40,6 +40,9 @@ export async function GET(request: Request) {
     }
     if (searchParams.get("cidade_id")) {
       query = query.eq("cidade_id", searchParams.get("cidade_id")!);
+    }
+    if (searchParams.get("cidade_cadastro_id")) {
+      query = query.eq("cidade_cadastro_id", searchParams.get("cidade_cadastro_id")!);
     }
     if (searchParams.get("bairro_id")) {
       query = query.eq("bairro_id", searchParams.get("bairro_id")!);

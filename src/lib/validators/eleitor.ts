@@ -32,7 +32,8 @@ const eleitorCamposComuns = {
   logradouro: z.string().trim().min(2, "Logradouro obrigatório").max(200),
   numero: z.string().trim().min(1, "Número obrigatório").max(20),
   complemento: z.string().trim().max(100).optional().or(z.literal("")),
-  cidade_id: uuidRequired("Município"),
+  cidade_cadastro_id: uuidRequired("Cidade do cadastro"),
+  cidade_id: uuidRequired("Município do eleitor"),
   estado_id: uuidRequired("Estado"),
   titulo_eleitor: z
     .string()

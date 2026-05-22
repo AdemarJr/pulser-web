@@ -21,7 +21,9 @@ INSERT INTO permissoes (slug, nome, modulo) VALUES
   ('relatorios.visualizar', 'Visualizar relatórios', 'relatorios'),
   ('relatorios.exportar', 'Exportar relatórios', 'relatorios'),
   ('auditoria.visualizar', 'Visualizar auditoria', 'auditoria'),
-  ('dashboard.visualizar', 'Visualizar dashboard', 'dashboard');
+  ('dashboard.visualizar', 'Visualizar dashboard', 'dashboard'),
+  ('portal.gerenciar', 'Gerenciar campanhas e formulários públicos', 'portal'),
+  ('portal.visualizar', 'Visualizar participações e resultados do portal', 'portal');
 
 -- Admin: todas permissões
 INSERT INTO perfil_permissoes (perfil_id, permissao_id)
@@ -33,7 +35,8 @@ SELECT p.id, perm.id FROM perfis p
 JOIN permissoes perm ON perm.slug IN (
   'usuarios.gerenciar', 'usuarios.visualizar', 'eleitores.visualizar', 'eleitores.editar_proprios',
   'eleitores.aprovar', 'eleitores.exportar', 'relatorios.visualizar',
-  'relatorios.exportar', 'dashboard.visualizar', 'auditoria.visualizar'
+  'relatorios.exportar', 'dashboard.visualizar', 'auditoria.visualizar',
+  'portal.visualizar'
 ) WHERE p.slug = 'coordenador';
 
 -- Cadastrador

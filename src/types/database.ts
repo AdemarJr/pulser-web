@@ -37,6 +37,7 @@ export interface Usuario {
   status: UsuarioStatus;
   tentativas_login: number;
   ultimo_acesso: string | null;
+  cidade_cadastro_padrao_id?: string | null;
   perfil?: Perfil;
 }
 
@@ -87,6 +88,7 @@ export interface Eleitor {
   complemento: string | null;
   bairro_id: string;
   cidade_id: string;
+  cidade_cadastro_id: string;
   estado_id: string;
   titulo_eleitor: string;
   zona_eleitoral_id: string;

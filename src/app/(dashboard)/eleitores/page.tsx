@@ -28,6 +28,8 @@ function EleitorCard({
 }) {
   const bairro = (e.bairro as { nome: string } | undefined)?.nome ?? "-";
   const zona = (e.zona_eleitoral as { numero: number } | undefined)?.numero ?? "-";
+  const cidadeCadastro =
+    (e as Eleitor & { cidade_cadastro?: { nome: string } }).cidade_cadastro?.nome ?? "-";
 
   return (
     <div
@@ -47,6 +49,10 @@ function EleitorCard({
         <div>
           <dt className="text-muted">Zona</dt>
           <dd className="font-medium text-foreground">{zona}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-muted">Cadastro em</dt>
+          <dd className="font-medium text-foreground">{cidadeCadastro}</dd>
         </div>
       </dl>
       <span className="mt-3 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium capitalize text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">
@@ -185,6 +191,7 @@ export default function EleitoresPage() {
                   <tr>
                     <th className="px-4 py-3 text-left font-medium">Nome</th>
                     <th className="px-4 py-3 text-left font-medium">CPF</th>
+                    <th className="px-4 py-3 text-left font-medium">Cadastro em</th>
                     <th className="px-4 py-3 text-left font-medium">Bairro</th>
                     <th className="px-4 py-3 text-left font-medium">Zona</th>
                     <th className="px-4 py-3 text-left font-medium">Situação</th>
@@ -194,13 +201,13 @@ export default function EleitoresPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={7} className="px-4 py-8 text-center text-muted">
                         Carregando...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={7} className="px-4 py-8 text-center text-muted">
                         Nenhum eleitor encontrado.
                       </td>
                     </tr>
@@ -213,6 +220,11 @@ export default function EleitoresPage() {
                       >
                         <td className="px-4 py-3 font-medium">{e.nome_completo}</td>
                         <td className="px-4 py-3">{formatCPF(e.cpf)}</td>
+                        <td className="px-4 py-3">
+                          {(
+                            e as Eleitor & { cidade_cadastro?: { nome: string } }
+                          ).cidade_cadastro?.nome ?? "—"}
+                        </td>
                         <td className="px-4 py-3">
                           {(e.bairro as { nome: string } | undefined)?.nome ?? "-"}
                         </td>

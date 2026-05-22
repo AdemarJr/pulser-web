@@ -34,10 +34,15 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/recuperar-senha");
 
   const isAuthApiRoute = request.nextUrl.pathname.startsWith("/api/auth");
+  const isPortalPublic =
+    request.nextUrl.pathname.startsWith("/portal") ||
+    request.nextUrl.pathname.startsWith("/api/public");
 
-  const isPublicRoute = isAuthRoute || isAuthApiRoute;
+  const isPublicRoute = isAuthRoute || isAuthApiRoute || isPortalPublic;
 
-  if (!user && !isPublicRoute && request.nextUrl.pathname !== "/") {
+  const isHome = request.nextUrl.pathname === "/";
+
+  if (!user && !isPublicRoute && !isHome) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

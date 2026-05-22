@@ -7,6 +7,7 @@ import {
   FileText,
   Shield,
   Vote,
+  BarChart3,
 } from "lucide-react";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 
@@ -47,6 +48,12 @@ export const navItems: NavItem[] = [
     label: "Usuários",
     icon: Users,
     permission: PERMISSIONS.USUARIOS_VISUALIZAR,
+  },
+  {
+    href: "/campanhas",
+    label: "Portal público",
+    icon: BarChart3,
+    permission: PERMISSIONS.PORTAL_VISUALIZAR,
   },
   {
     href: "/territorio",

@@ -4,6 +4,7 @@ const ELEITOR_SELECT = `
   *,
   bairro:bairros(nome),
   cidade:cidades(nome, estado:estados(sigla, nome)),
+  cidade_cadastro:cidades!cidade_cadastro_id(nome, estado:estados(sigla, nome)),
   zona_eleitoral:zonas_eleitorais(numero),
   cadastrador:usuarios!cadastrado_por(nome_completo)
 `;

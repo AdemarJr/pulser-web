@@ -29,6 +29,7 @@ export function eleitorToFormInput(e: Eleitor): EleitorFormInput {
     numero: e.numero,
     complemento: e.complemento ?? "",
     estado_id: e.estado_id,
+    cidade_cadastro_id: e.cidade_cadastro_id ?? e.cidade_id,
     cidade_id: e.cidade_id,
     bairro_id: e.bairro_id,
     novo_bairro_nome: "",
