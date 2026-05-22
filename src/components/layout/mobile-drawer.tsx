@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { LogOut, X } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { useAuth } from "@/components/layout/auth-context";
 import { filterNavItems, navItems } from "@/components/layout/nav-config";
 import { NavLinks } from "@/components/layout/nav-links";
+import { UserSessionBadge } from "@/components/layout/user-session-badge";
 
 type Props = {
   open: boolean;
@@ -13,21 +14,13 @@ type Props = {
 };
 
 export function MobileDrawer({ open, onOpenChange }: Props) {
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { auth } = useAuth();
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success) {
-          setPermissions(j.data.permissions ?? []);
-          setIsAdmin(j.data.canViewAllEleitores === true);
-        }
-      });
-  }, []);
-
-  const visible = filterNavItems(navItems, permissions, isAdmin);
+  const visible = filterNavItems(
+    navItems,
+    auth?.permissions ?? [],
+    auth?.canViewAllEleitores === true
+  );
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -39,11 +32,14 @@ export function MobileDrawer({ open, onOpenChange }: Props) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm lg:hidden" />
         <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex max-h-[100dvh] w-[min(100vw-3rem,18rem)] min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100 shadow-xl outline-none lg:hidden">
-          <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800 px-4">
-            <Logo size="sm" />
-            <Dialog.Close className="rounded-lg p-2 hover:bg-slate-800" aria-label="Fechar">
-              <X className="h-5 w-5" />
-            </Dialog.Close>
+          <div className="flex shrink-0 flex-col gap-3 border-b border-slate-800 px-4 py-4">
+            <div className="flex h-10 items-center justify-between">
+              <Logo size="sm" />
+              <Dialog.Close className="rounded-lg p-2 hover:bg-slate-800" aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </Dialog.Close>
+            </div>
+            <UserSessionBadge variant="sidebar" />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain py-2">
             <NavLinks

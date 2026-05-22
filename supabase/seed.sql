@@ -33,7 +33,8 @@ SELECT p.id, perm.id FROM perfis p, permissoes perm WHERE p.slug = 'admin_geral'
 INSERT INTO perfil_permissoes (perfil_id, permissao_id)
 SELECT p.id, perm.id FROM perfis p
 JOIN permissoes perm ON perm.slug IN (
-  'usuarios.gerenciar', 'usuarios.visualizar', 'eleitores.visualizar', 'eleitores.editar_proprios',
+  'usuarios.gerenciar', 'usuarios.visualizar', 'eleitores.visualizar', 'eleitores.visualizar_todos',
+  'eleitores.editar_proprios', 'eleitores.editar_todos', 'eleitores.excluir',
   'eleitores.aprovar', 'eleitores.exportar', 'relatorios.visualizar',
   'relatorios.exportar', 'dashboard.visualizar', 'auditoria.visualizar',
   'portal.visualizar'

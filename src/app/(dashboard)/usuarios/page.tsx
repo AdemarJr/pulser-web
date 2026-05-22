@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
+import { useAuth } from "@/components/layout/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsuarioListActions } from "@/components/usuarios/usuario-list-actions";
@@ -29,6 +30,8 @@ function UsuarioCard({
   onOpen: (id: string) => void;
 }) {
   const perfil = (u.perfil as { nome: string; slug: string } | undefined)?.nome ?? "—";
+  const criador = (u as Usuario & { criador?: { nome_completo: string } | null }).criador
+    ?.nome_completo;
 
   return (
     <div
@@ -47,6 +50,9 @@ function UsuarioCard({
         <span className="rounded-full bg-indigo-100 px-2 py-0.5 font-medium capitalize text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">
           {u.status}
         </span>
+        {criador && (
+          <span className="text-muted">Cadastrado por: {criador}</span>
+        )}
       </div>
       <UsuarioListActions
         usuario={{
@@ -65,6 +71,7 @@ function UsuarioCard({
 
 export default function UsuariosPage() {
   const router = useRouter();
+  const { auth: sessionAuth } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [auth, setAuth] = useState<AuthMeUsuarios | null>(null);
   const [podeCriar, setPodeCriar] = useState(false);
@@ -116,6 +123,16 @@ export default function UsuariosPage() {
     <>
       <Header title="Usuários" />
       <div className="page-content">
+        {sessionAuth?.canViewAllUsuarios ? (
+          <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+            Visão de gestão: todos os usuários e perfis da equipe (cadastradores,
+            coordenadores e visualizadores na sua hierarquia).
+          </p>
+        ) : (
+          <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
+            Exibindo usuários conforme suas permissões de visualização.
+          </p>
+        )}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted">
             Gerencie contas, perfis e permissões herdadas por hierarquia.
@@ -156,6 +173,7 @@ export default function UsuariosPage() {
                     <th className="px-4 py-3 text-left font-medium">Nome</th>
                     <th className="px-4 py-3 text-left font-medium">E-mail</th>
                     <th className="px-4 py-3 text-left font-medium">Perfil</th>
+                    <th className="px-4 py-3 text-left font-medium">Cadastrado por</th>
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-right font-medium">Ações</th>
                   </tr>
@@ -163,13 +181,13 @@ export default function UsuariosPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
                         Carregando...
                       </td>
                     </tr>
                   ) : usuarios.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
                         Nenhum usuário encontrado.
                       </td>
                     </tr>
@@ -184,6 +202,11 @@ export default function UsuariosPage() {
                         <td className="px-4 py-3">{u.email}</td>
                         <td className="px-4 py-3">
                           {(u.perfil as { nome: string } | undefined)?.nome ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {(
+                            u as Usuario & { criador?: { nome_completo: string } | null }
+                          ).criador?.nome_completo ?? "—"}
                         </td>
                         <td className="px-4 py-3 capitalize">{u.status}</td>
                         <td className="px-4 py-3 text-right">

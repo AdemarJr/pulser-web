@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { canViewAllEleitores } from "@/lib/auth/eleitores-access";
+import { canViewAllUsuariosEquipe } from "@/lib/auth/usuarios-access";
 import { getSession } from "@/lib/auth/session";
 import { jsonOk, jsonUnauthorized } from "@/lib/api/response";
 
@@ -19,9 +21,11 @@ export async function GET() {
 
   return jsonOk({
     user: session.user,
+    nomeCompleto: session.profile.nome_completo,
     perfil: session.profile.perfil,
     permissions: session.permissions,
-    canViewAllEleitores: session.profile.perfil?.slug === "admin_geral",
+    canViewAllEleitores: canViewAllEleitores(session),
+    canViewAllUsuarios: canViewAllUsuariosEquipe(session),
     cidadeCadastroPadrao,
   });
 }

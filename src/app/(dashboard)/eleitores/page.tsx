@@ -134,9 +134,13 @@ export default function EleitoresPage() {
     <>
       <Header title={escopo === "todos" ? "Eleitores" : "Meus eleitores"} />
       <div className="page-content">
-        {escopo === "proprios" && (
+        {escopo === "proprios" ? (
           <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
-            Exibindo apenas os cadastros que você registrou. O administrador visualiza todos.
+            Exibindo apenas os eleitores que você cadastrou.
+          </p>
+        ) : (
+          <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+            Exibindo todos os eleitores cadastrados no sistema (visão de gestão).
           </p>
         )}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

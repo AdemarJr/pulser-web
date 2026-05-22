@@ -19,6 +19,7 @@ export type UsuarioDetalhe = {
   ultimo_acesso: string | null;
   created_at: string;
   perfil?: { nome: string; slug: string; descricao: string | null } | null;
+  criador?: { nome_completo: string } | null;
   permissoes?: Permissao[];
 };
 
@@ -84,6 +85,10 @@ export function UsuarioDetail({
           <Field label="Perfil" value={perfil?.nome ?? "—"} />
           <Field label="Slug" value={perfil?.slug ?? "—"} />
           <Field label="Descrição" value={perfil?.descricao ?? "—"} />
+          <Field
+            label="Cadastrado por"
+            value={usuario.criador?.nome_completo ?? "—"}
+          />
         </CardContent>
       </Card>
 

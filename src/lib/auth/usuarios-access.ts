@@ -1,4 +1,5 @@
 import type { AuthSession } from "@/lib/auth/session";
+import { isGestorEquipe } from "@/lib/auth/eleitores-access";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import {
   podeAtribuirPerfil,
@@ -19,9 +20,15 @@ function slugPerfil(u: UsuarioComPerfil): string {
 
 export function canViewUsuarios(session: AuthSession): boolean {
   return (
+    isGestorEquipe(session) ||
     hasPermission(session.permissions, PERMISSIONS.USUARIOS_VISUALIZAR) ||
     hasPermission(session.permissions, PERMISSIONS.USUARIOS_GERENCIAR)
   );
+}
+
+/** Admin e coordenador veem toda a equipe (perfis na hierarquia). */
+export function canViewAllUsuariosEquipe(session: AuthSession): boolean {
+  return isGestorEquipe(session);
 }
 
 export function canManageUsuarios(session: AuthSession): boolean {

@@ -6,11 +6,13 @@ import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileNavContext } from "@/components/layout/mobile-nav-context";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { AuthProvider } from "@/components/layout/auth-context";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
+    <AuthProvider>
     <MobileNavContext.Provider value={{ openMenu: () => setMenuOpen(true) }}>
       <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background">
         <Sidebar />
@@ -27,5 +29,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <InstallPrompt />
       </div>
     </MobileNavContext.Provider>
+    </AuthProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { Moon, Sun, Bell, Menu } from "lucide-react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { useMobileNav } from "@/components/layout/mobile-nav-context";
+import { UserSessionBadge } from "@/components/layout/user-session-badge";
 
 export function Header({ title }: { title: string }) {
   const { theme, toggleTheme } = useTheme();
@@ -23,7 +24,13 @@ export function Header({ title }: { title: string }) {
           {title}
         </h1>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <div className="hidden sm:block">
+          <UserSessionBadge variant="header" />
+        </div>
+        <div className="sm:hidden">
+          <UserSessionBadge variant="compact" className="max-w-[6.5rem]" />
+        </div>
         <button
           type="button"
           className="rounded-lg p-2.5 text-muted hover:bg-slate-100 dark:hover:bg-slate-800"

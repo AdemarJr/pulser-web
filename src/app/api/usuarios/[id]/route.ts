@@ -20,7 +20,9 @@ async function fetchUsuario(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("usuarios")
-    .select("*, perfil:perfis(id, slug, nome, descricao, is_system)")
+    .select(
+      "*, perfil:perfis(id, slug, nome, descricao, is_system), criador:usuarios!criado_por(nome_completo)"
+    )
     .eq("id", id)
     .maybeSingle();
   return { data, error };

@@ -24,7 +24,9 @@ export async function GET() {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("usuarios")
-      .select("*, perfil:perfis(id, slug, nome, descricao)")
+      .select(
+        "*, perfil:perfis(id, slug, nome, descricao), criador:usuarios!criado_por(nome_completo)"
+      )
       .order("nome_completo");
 
     if (error) return jsonError(error.message, 500);
@@ -88,8 +90,9 @@ export async function POST(request: Request) {
         cpf: parsed.data.cpf || null,
         perfil_id: parsed.data.perfil_id,
         status: parsed.data.status,
+        criado_por: session.user.id,
       })
-      .select("*, perfil:perfis(id, slug, nome, descricao)")
+      .select("*, perfil:perfis(id, slug, nome, descricao), criador:usuarios!criado_por(nome_completo)")
       .single();
 
     if (error) return jsonError(error.message, 500);

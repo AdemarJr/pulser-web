@@ -2,32 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/layout/auth-context";
 import { filterNavItems, navItems } from "@/components/layout/nav-config";
 import { useMobileNav } from "@/components/layout/mobile-nav-context";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { openMenu } = useMobileNav();
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { auth } = useAuth();
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success) {
-          setPermissions(j.data.permissions ?? []);
-          setIsAdmin(j.data.canViewAllEleitores === true);
-        }
-      });
-  }, []);
-
-  const visible = filterNavItems(navItems, permissions, isAdmin).filter(
-    (i) => i.mobilePrimary
-  );
+  const visible = filterNavItems(
+    navItems,
+    auth?.permissions ?? [],
+    auth?.canViewAllEleitores === true
+  ).filter((i) => i.mobilePrimary);
 
   return (
     <nav
