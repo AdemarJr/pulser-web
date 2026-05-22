@@ -13,11 +13,10 @@ export function MobileBottomNav() {
   const { openMenu } = useMobileNav();
   const { auth } = useAuth();
 
-  const visible = filterNavItems(
-    navItems,
-    auth?.permissions ?? [],
-    auth?.canViewAllEleitores === true
-  ).filter((i) => i.mobilePrimary);
+  const visible = filterNavItems(navItems, auth?.permissions ?? [], {
+    gestaoEleitores: auth?.canViewAllEleitores === true,
+    moduloUsuarios: auth?.canAccessUsuarios === true,
+  }).filter((i) => i.mobilePrimary);
 
   return (
     <nav

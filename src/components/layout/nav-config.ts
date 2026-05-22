@@ -17,6 +17,8 @@ export type NavItem = {
   icon: ComponentType<{ className?: string }>;
   permission?: string;
   adminOnly?: boolean;
+  /** Somente Admin Geral, Coordenador ou Super Admin */
+  moduloUsuarios?: boolean;
   /** Exibir na barra inferior mobile */
   mobilePrimary?: boolean;
 };
@@ -47,7 +49,7 @@ export const navItems: NavItem[] = [
     href: "/usuarios",
     label: "Usuários",
     icon: Users,
-    permission: PERMISSIONS.USUARIOS_VISUALIZAR,
+    moduloUsuarios: true,
   },
   {
     href: "/campanhas",
@@ -78,18 +80,21 @@ export const navItems: NavItem[] = [
 export function filterNavItems(
   items: NavItem[],
   permissions: string[],
-  isAdmin: boolean
+  options: { gestaoEleitores: boolean; moduloUsuarios: boolean }
 ): NavItem[] {
   return items.filter((item) => {
-    if (item.adminOnly && !isAdmin) return false;
+    if (item.moduloUsuarios && !options.moduloUsuarios) return false;
+    if (item.adminOnly && !options.gestaoEleitores) return false;
     if (!item.permission) return true;
     if (item.permission === PERMISSIONS.ELEITORES_VISUALIZAR) {
       return (
         permissions.includes(PERMISSIONS.ELEITORES_VISUALIZAR) ||
         permissions.includes(PERMISSIONS.ELEITORES_VISUALIZAR_TODOS) ||
-        isAdmin
+        options.gestaoEleitores
       );
     }
-    return permissions.includes(item.permission) || isAdmin;
+    return (
+      permissions.includes(item.permission) || options.gestaoEleitores
+    );
   });
 }

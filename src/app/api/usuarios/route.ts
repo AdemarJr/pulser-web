@@ -9,12 +9,9 @@ import {
   slugPerfilUsuario,
 } from "@/lib/auth/usuarios-access";
 import { podeVisualizarUsuario } from "@/lib/auth/perfil-hierarquia";
+import { isSuperAdmin } from "@/lib/auth/super-admin";
 import { fetchUsuariosLista } from "@/lib/usuarios/fetch-list";
-import {
-  USUARIO_LIST_SELECT,
-  USUARIO_LIST_SELECT_SEM_CRIADOR,
-  isUsuarioCriadorEmbedError,
-} from "@/lib/usuarios/select-fields";
+import { USUARIO_LIST_SELECT } from "@/lib/usuarios/select-fields";
 import { usuarioCreateSchema } from "@/lib/validators/usuario";
 import {
   jsonError,
@@ -36,16 +33,15 @@ export async function GET() {
     if (error) return jsonError(error.message, 500);
 
     const slugAtor = session.profile.perfil?.slug ?? "";
-    const lista = data ?? [];
-    const filtrados = canViewAllUsuariosEquipe(session)
-      ? lista
-      : lista.filter((u) =>
-          podeVisualizarUsuario(
-            slugAtor,
-            slugPerfilUsuario(u),
-            u.id === session.user.id
-          )
-        );
+    const superAdmin = isSuperAdmin(session);
+    const filtrados = (data ?? []).filter((u) =>
+      podeVisualizarUsuario(
+        slugAtor,
+        slugPerfilUsuario(u),
+        u.id === session.user.id,
+        superAdmin
+      )
+    );
 
     return jsonOk(filtrados);
   } catch {
@@ -97,25 +93,20 @@ export async function POST(request: Request) {
       criado_por: session.user.id,
     };
 
-    const { error: insertError } = await service.from("usuarios").insert(row);
+    let insertError = (
+      await service.from("usuarios").insert(row)
+    ).error;
+    if (insertError?.message.includes("criado_por")) {
+      const { criado_por: _c, ...semCriador } = row;
+      insertError = (await service.from("usuarios").insert(semCriador)).error;
+    }
     if (insertError) return jsonError(insertError.message, 500);
 
-    let fetched = await service
+    const fetched = await service
       .from("usuarios")
       .select(USUARIO_LIST_SELECT)
       .eq("id", authUser.user.id)
       .single();
-
-    if (
-      fetched.error &&
-      isUsuarioCriadorEmbedError(fetched.error.message)
-    ) {
-      fetched = await service
-        .from("usuarios")
-        .select(USUARIO_LIST_SELECT_SEM_CRIADOR)
-        .eq("id", authUser.user.id)
-        .single();
-    }
 
     if (fetched.error) return jsonError(fetched.error.message, 500);
     return jsonOk(fetched.data, 201);

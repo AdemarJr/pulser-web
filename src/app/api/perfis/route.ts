@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireSession } from "@/lib/auth/session";
 import { perfisAtribuiveis } from "@/lib/auth/perfil-hierarquia";
+import { isSuperAdmin } from "@/lib/auth/super-admin";
 import { canViewUsuarios } from "@/lib/auth/usuarios-access";
 import { jsonForbidden, jsonOk, jsonUnauthorized } from "@/lib/api/response";
 
@@ -19,8 +20,8 @@ export async function GET() {
 
     if (errPerfis) return jsonOk([]);
 
-    const atribuiveis = new Set(perfisAtribuiveis(slugAtor));
-    const podeGerenciar = session.profile.perfil?.slug === "admin_geral";
+    const superAdmin = isSuperAdmin(session);
+    const atribuiveis = new Set(perfisAtribuiveis(slugAtor, superAdmin));
 
     const { data: vinculos } = await supabase.from("perfil_permissoes").select(
       "perfil_id, permissao:permissoes(id, slug, nome, modulo)"
@@ -45,7 +46,7 @@ export async function GET() {
     const resultado = (perfis ?? []).map((p) => ({
       ...p,
       permissoes: permissoesPorPerfil.get(p.id) ?? [],
-      pode_atribuir: podeGerenciar || atribuiveis.has(p.slug as never),
+      pode_atribuir: atribuiveis.has(p.slug as never),
     }));
 
     return jsonOk({

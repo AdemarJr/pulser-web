@@ -1,11 +1,12 @@
 import type { AuthSession } from "@/lib/auth/session";
-import { isGestorEquipe } from "@/lib/auth/eleitores-access";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import {
+  podeAcessarModuloUsuarios,
   podeAtribuirPerfil,
   podeGerenciarUsuario,
   podeVisualizarUsuario,
 } from "@/lib/auth/perfil-hierarquia";
+import { isSuperAdmin } from "@/lib/auth/super-admin";
 
 export type UsuarioComPerfil = {
   id: string;
@@ -27,20 +28,27 @@ export function nomePerfilUsuario(
   return p.nome ?? "—";
 }
 
-export function canViewUsuarios(session: AuthSession): boolean {
-  return (
-    isGestorEquipe(session) ||
-    hasPermission(session.permissions, PERMISSIONS.USUARIOS_VISUALIZAR) ||
-    hasPermission(session.permissions, PERMISSIONS.USUARIOS_GERENCIAR)
-  );
+function slugAtor(session: AuthSession): string {
+  return session.profile.perfil?.slug ?? "";
 }
 
-/** Admin e coordenador veem toda a equipe (perfis na hierarquia). */
+function superAdmin(session: AuthSession): boolean {
+  return isSuperAdmin(session);
+}
+
+/** Apenas Admin Geral, Coordenador e Super Admin (conta bootstrap). */
+export function canViewUsuarios(session: AuthSession): boolean {
+  if (superAdmin(session)) return true;
+  return podeAcessarModuloUsuarios(slugAtor(session));
+}
+
 export function canViewAllUsuariosEquipe(session: AuthSession): boolean {
-  return isGestorEquipe(session);
+  return canViewUsuarios(session);
 }
 
 export function canManageUsuarios(session: AuthSession): boolean {
+  if (!canViewUsuarios(session)) return false;
+  if (superAdmin(session) || slugAtor(session) === "admin_geral") return true;
   return hasPermission(session.permissions, PERMISSIONS.USUARIOS_GERENCIAR);
 }
 
@@ -50,9 +58,10 @@ export function canViewUsuario(
 ): boolean {
   if (!canViewUsuarios(session)) return false;
   return podeVisualizarUsuario(
-    session.profile.perfil?.slug ?? "",
+    slugAtor(session),
     slugPerfilUsuario(alvo),
-    session.user.id === alvo.id
+    session.user.id === alvo.id,
+    superAdmin(session)
   );
 }
 
@@ -62,9 +71,10 @@ export function canEditUsuario(
 ): boolean {
   if (!canManageUsuarios(session)) return false;
   return podeGerenciarUsuario(
-    session.profile.perfil?.slug ?? "",
+    slugAtor(session),
     slugPerfilUsuario(alvo),
-    session.user.id === alvo.id
+    session.user.id === alvo.id,
+    superAdmin(session)
   );
 }
 
@@ -80,5 +90,9 @@ export function canAssignPerfilId(
   perfilSlug: string
 ): boolean {
   if (!canManageUsuarios(session)) return false;
-  return podeAtribuirPerfil(session.profile.perfil?.slug ?? "", perfilSlug);
+  return podeAtribuirPerfil(
+    slugAtor(session),
+    perfilSlug,
+    superAdmin(session)
+  );
 }

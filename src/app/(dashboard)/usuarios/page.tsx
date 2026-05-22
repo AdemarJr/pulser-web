@@ -14,6 +14,7 @@ import { nomePerfilUsuario } from "@/lib/auth/usuarios-access";
 import {
   authMeUsuariosFromApi,
   canManageUsuariosList,
+  canViewUsuariosList,
   type AuthMeUsuarios,
 } from "@/lib/usuarios/client-permissions";
 import type { Usuario } from "@/types/database";
@@ -78,6 +79,7 @@ export default function UsuariosPage() {
   const [podeCriar, setPodeCriar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
+  const [acessoNegado, setAcessoNegado] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteConfirm = useConfirmDelete("usuário");
 
@@ -91,7 +93,15 @@ export default function UsuariosPage() {
       if (listRes.success) setUsuarios(listRes.data);
       else setListError(listRes.error ?? "Não foi possível carregar os usuários.");
       if (meRes.success) {
-        const me = authMeUsuariosFromApi(meRes.data);
+        const me = authMeUsuariosFromApi({
+          ...meRes.data,
+          isSuperAdmin: meRes.data.isSuperAdmin,
+        });
+        if (!canViewUsuariosList(me)) {
+          setAcessoNegado(true);
+          setLoading(false);
+          return;
+        }
         setAuth(me);
         setPodeCriar(canManageUsuariosList(me));
       }
@@ -122,6 +132,19 @@ export default function UsuariosPage() {
   }
 
   const emptyMessage = loading ? "Carregando..." : "Nenhum usuário encontrado.";
+
+  if (acessoNegado) {
+    return (
+      <>
+        <Header title="Usuários" />
+        <div className="page-content">
+          <p className="text-sm text-muted">
+            Você não tem permissão para acessar o módulo de usuários.
+          </p>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

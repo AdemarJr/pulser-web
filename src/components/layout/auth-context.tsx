@@ -15,7 +15,8 @@ export type AuthMeData = {
   perfil: { slug: string; nome: string; descricao?: string | null } | null;
   permissions: string[];
   canViewAllEleitores: boolean;
-  canViewAllUsuarios: boolean;
+  canAccessUsuarios: boolean;
+  isSuperAdmin: boolean;
 };
 
 type AuthContextValue = {
@@ -46,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             perfil: j.data.perfil ?? null,
             permissions: j.data.permissions ?? [],
             canViewAllEleitores: j.data.canViewAllEleitores === true,
-            canViewAllUsuarios: j.data.canViewAllUsuarios === true,
+            canAccessUsuarios: j.data.canAccessUsuarios === true,
+            isSuperAdmin: j.data.isSuperAdmin === true,
           });
         } else {
           setAuth(null);

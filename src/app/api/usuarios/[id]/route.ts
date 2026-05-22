@@ -9,11 +9,8 @@ import {
   canViewAllUsuariosEquipe,
   canViewUsuario,
 } from "@/lib/auth/usuarios-access";
-import {
-  USUARIO_DETAIL_SELECT,
-  USUARIO_DETAIL_SELECT_SEM_CRIADOR,
-  isUsuarioCriadorEmbedError,
-} from "@/lib/usuarios/select-fields";
+import { USUARIO_DETAIL_SELECT } from "@/lib/usuarios/select-fields";
+import { enrichUsuarioCriador } from "@/lib/usuarios/enrich-criador";
 import { usuarioUpdateSchema } from "@/lib/validators/usuario";
 import {
   jsonError,
@@ -25,24 +22,18 @@ import {
 type Params = { params: Promise<{ id: string }> };
 
 async function fetchUsuario(id: string, supabase: SupabaseClient) {
-  let result = await supabase
+  const result = await supabase
     .from("usuarios")
     .select(USUARIO_DETAIL_SELECT)
     .eq("id", id)
     .maybeSingle();
 
-  if (
-    result.error &&
-    isUsuarioCriadorEmbedError(result.error.message)
-  ) {
-    result = await supabase
-      .from("usuarios")
-      .select(USUARIO_DETAIL_SELECT_SEM_CRIADOR)
-      .eq("id", id)
-      .maybeSingle();
+  if (result.error || !result.data) {
+    return result;
   }
 
-  return result;
+  const enriched = await enrichUsuarioCriador(supabase, result.data);
+  return { ...result, data: enriched };
 }
 
 async function clientForUsuariosRead(session: AuthSession) {

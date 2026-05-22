@@ -19,33 +19,62 @@ export function nivelPerfil(slug: string): number {
   return PERFIL_NIVEL[slug as PerfilSlug] ?? 0;
 }
 
-/** Perfis que o ator pode atribuir ao criar/editar outro usuário */
-export function perfisAtribuiveis(slugAtor: string): PerfilSlug[] {
-  const nivelAtor = nivelPerfil(slugAtor);
-  return PERFIL_ORDEM.filter((s) => nivelPerfil(s) < nivelAtor);
+export function podeAcessarModuloUsuarios(slugAtor: string): boolean {
+  return slugAtor === "admin_geral" || slugAtor === "coordenador";
 }
 
-export function podeAtribuirPerfil(slugAtor: string, slugAlvo: string): boolean {
-  if (slugAtor === "admin_geral") return true;
-  return nivelPerfil(slugAlvo) < nivelPerfil(slugAtor);
+/** Perfis que o ator pode atribuir ao criar/editar outro usuário */
+export function perfisAtribuiveis(
+  slugAtor: string,
+  superAdmin = false
+): PerfilSlug[] {
+  if (superAdmin) return [...PERFIL_ORDEM];
+  if (slugAtor === "admin_geral") {
+    return ["coordenador", "cadastrador", "visualizador"];
+  }
+  if (slugAtor === "coordenador") {
+    return ["cadastrador", "visualizador"];
+  }
+  return [];
+}
+
+export function podeAtribuirPerfil(
+  slugAtor: string,
+  slugAlvo: string,
+  superAdmin = false
+): boolean {
+  return perfisAtribuiveis(slugAtor, superAdmin).includes(slugAlvo as PerfilSlug);
 }
 
 export function podeGerenciarUsuario(
   slugAtor: string,
   slugAlvo: string,
-  mesmoUsuario: boolean
+  mesmoUsuario: boolean,
+  superAdmin = false
 ): boolean {
   if (mesmoUsuario) return false;
-  if (slugAtor === "admin_geral") return true;
-  return nivelPerfil(slugAlvo) < nivelPerfil(slugAtor);
+  if (superAdmin) return true;
+  if (slugAtor === "admin_geral") {
+    return slugAlvo !== "admin_geral";
+  }
+  if (slugAtor === "coordenador") {
+    return nivelPerfil(slugAlvo) < nivelPerfil(slugAtor);
+  }
+  return false;
 }
 
 export function podeVisualizarUsuario(
   slugAtor: string,
   slugAlvo: string,
-  mesmoUsuario: boolean
+  mesmoUsuario: boolean,
+  superAdmin = false
 ): boolean {
   if (mesmoUsuario) return true;
+  if (!podeAcessarModuloUsuarios(slugAtor) && !superAdmin) return false;
+  if (superAdmin) return true;
   if (slugAtor === "admin_geral") return true;
-  return nivelPerfil(slugAlvo) <= nivelPerfil(slugAtor);
+  if (slugAtor === "coordenador") {
+    return nivelPerfil(slugAlvo) < nivelPerfil(slugAtor);
+  }
+  return false;
 }

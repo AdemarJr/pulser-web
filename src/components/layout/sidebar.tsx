@@ -10,11 +10,10 @@ import { UserSessionBadge } from "@/components/layout/user-session-badge";
 export function Sidebar() {
   const { auth } = useAuth();
 
-  const visible = filterNavItems(
-    navItems,
-    auth?.permissions ?? [],
-    auth?.canViewAllEleitores === true
-  );
+  const visible = filterNavItems(navItems, auth?.permissions ?? [], {
+    gestaoEleitores: auth?.canViewAllEleitores === true,
+    moduloUsuarios: auth?.canAccessUsuarios === true,
+  });
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
