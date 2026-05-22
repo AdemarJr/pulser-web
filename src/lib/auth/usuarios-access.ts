@@ -12,10 +12,19 @@ export type UsuarioComPerfil = {
   perfil?: { slug: string } | { slug: string }[] | null;
 };
 
-function slugPerfil(u: UsuarioComPerfil): string {
+export function slugPerfilUsuario(u: UsuarioComPerfil): string {
   const p = u.perfil;
   if (!p) return "";
   return Array.isArray(p) ? p[0]?.slug ?? "" : p.slug;
+}
+
+export function nomePerfilUsuario(
+  u: { perfil?: { nome: string } | { nome: string }[] | null }
+): string {
+  const p = u.perfil;
+  if (!p) return "—";
+  if (Array.isArray(p)) return p[0]?.nome ?? "—";
+  return p.nome ?? "—";
 }
 
 export function canViewUsuarios(session: AuthSession): boolean {
@@ -42,7 +51,7 @@ export function canViewUsuario(
   if (!canViewUsuarios(session)) return false;
   return podeVisualizarUsuario(
     session.profile.perfil?.slug ?? "",
-    slugPerfil(alvo),
+    slugPerfilUsuario(alvo),
     session.user.id === alvo.id
   );
 }
@@ -54,7 +63,7 @@ export function canEditUsuario(
   if (!canManageUsuarios(session)) return false;
   return podeGerenciarUsuario(
     session.profile.perfil?.slug ?? "",
-    slugPerfil(alvo),
+    slugPerfilUsuario(alvo),
     session.user.id === alvo.id
   );
 }

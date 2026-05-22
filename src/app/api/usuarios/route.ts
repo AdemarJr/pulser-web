@@ -4,10 +4,17 @@ import { requireSession } from "@/lib/auth/session";
 import {
   canAssignPerfilId,
   canManageUsuarios,
-  canViewUsuario,
+  canViewAllUsuariosEquipe,
   canViewUsuarios,
+  slugPerfilUsuario,
 } from "@/lib/auth/usuarios-access";
 import { podeVisualizarUsuario } from "@/lib/auth/perfil-hierarquia";
+import { fetchUsuariosLista } from "@/lib/usuarios/fetch-list";
+import {
+  USUARIO_LIST_SELECT,
+  USUARIO_LIST_SELECT_SEM_CRIADOR,
+  isUsuarioCriadorEmbedError,
+} from "@/lib/usuarios/select-fields";
 import { usuarioCreateSchema } from "@/lib/validators/usuario";
 import {
   jsonError,
@@ -21,25 +28,24 @@ export async function GET() {
     const session = await requireSession();
     if (!canViewUsuarios(session)) return jsonForbidden();
 
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select(
-        "*, perfil:perfis(id, slug, nome, descricao), criador:usuarios!criado_por(nome_completo)"
-      )
-      .order("nome_completo");
+    const supabase = canViewAllUsuariosEquipe(session)
+      ? await createServiceClient()
+      : await createClient();
+    const { data, error } = await fetchUsuariosLista(supabase);
 
     if (error) return jsonError(error.message, 500);
 
     const slugAtor = session.profile.perfil?.slug ?? "";
-    const filtrados = (data ?? []).filter((u) => {
-      const slug = (u.perfil as { slug: string } | null)?.slug ?? "";
-      return podeVisualizarUsuario(
-        slugAtor,
-        slug,
-        u.id === session.user.id
-      );
-    });
+    const lista = data ?? [];
+    const filtrados = canViewAllUsuariosEquipe(session)
+      ? lista
+      : lista.filter((u) =>
+          podeVisualizarUsuario(
+            slugAtor,
+            slugPerfilUsuario(u),
+            u.id === session.user.id
+          )
+        );
 
     return jsonOk(filtrados);
   } catch {
@@ -80,23 +86,39 @@ export async function POST(request: Request) {
 
     if (authError) return jsonError(authError.message, 500);
 
-    const { data, error } = await service
+    const row = {
+      id: authUser.user.id,
+      nome_completo: parsed.data.nome_completo,
+      email: parsed.data.email,
+      telefone: parsed.data.telefone || null,
+      cpf: parsed.data.cpf || null,
+      perfil_id: parsed.data.perfil_id,
+      status: parsed.data.status,
+      criado_por: session.user.id,
+    };
+
+    const { error: insertError } = await service.from("usuarios").insert(row);
+    if (insertError) return jsonError(insertError.message, 500);
+
+    let fetched = await service
       .from("usuarios")
-      .insert({
-        id: authUser.user.id,
-        nome_completo: parsed.data.nome_completo,
-        email: parsed.data.email,
-        telefone: parsed.data.telefone || null,
-        cpf: parsed.data.cpf || null,
-        perfil_id: parsed.data.perfil_id,
-        status: parsed.data.status,
-        criado_por: session.user.id,
-      })
-      .select("*, perfil:perfis(id, slug, nome, descricao), criador:usuarios!criado_por(nome_completo)")
+      .select(USUARIO_LIST_SELECT)
+      .eq("id", authUser.user.id)
       .single();
 
-    if (error) return jsonError(error.message, 500);
-    return jsonOk(data, 201);
+    if (
+      fetched.error &&
+      isUsuarioCriadorEmbedError(fetched.error.message)
+    ) {
+      fetched = await service
+        .from("usuarios")
+        .select(USUARIO_LIST_SELECT_SEM_CRIADOR)
+        .eq("id", authUser.user.id)
+        .single();
+    }
+
+    if (fetched.error) return jsonError(fetched.error.message, 500);
+    return jsonOk(fetched.data, 201);
   } catch {
     return jsonUnauthorized();
   }

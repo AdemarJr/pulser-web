@@ -4,13 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
-import { useAuth } from "@/components/layout/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsuarioListActions } from "@/components/usuarios/usuario-list-actions";
 import { Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/action-dialog";
 import { useConfirmDelete } from "@/hooks/use-confirm-delete";
+import { nomePerfilUsuario } from "@/lib/auth/usuarios-access";
 import {
   authMeUsuariosFromApi,
   canManageUsuariosList,
@@ -31,7 +31,7 @@ function UsuarioCard({
   deletingId: string | null;
   onOpen: (id: string) => void;
 }) {
-  const perfil = (u.perfil as { nome: string; slug: string } | undefined)?.nome ?? "—";
+  const perfil = nomePerfilUsuario(u);
   const criador = (u as Usuario & { criador?: { nome_completo: string } | null }).criador
     ?.nome_completo;
 
@@ -73,21 +73,23 @@ function UsuarioCard({
 
 export default function UsuariosPage() {
   const router = useRouter();
-  const { auth: sessionAuth } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [auth, setAuth] = useState<AuthMeUsuarios | null>(null);
   const [podeCriar, setPodeCriar] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteConfirm = useConfirmDelete("usuário");
 
   const load = useCallback(() => {
     setLoading(true);
+    setListError("");
     Promise.all([
       fetch("/api/usuarios", { credentials: "include" }).then((r) => r.json()),
       fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json()),
     ]).then(([listRes, meRes]) => {
       if (listRes.success) setUsuarios(listRes.data);
+      else setListError(listRes.error ?? "Não foi possível carregar os usuários.");
       if (meRes.success) {
         const me = authMeUsuariosFromApi(meRes.data);
         setAuth(me);
@@ -125,14 +127,9 @@ export default function UsuariosPage() {
     <>
       <Header title="Usuários" />
       <div className="page-content">
-        {sessionAuth?.canViewAllUsuarios ? (
-          <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-            Visão de gestão: todos os usuários e perfis da equipe (cadastradores,
-            coordenadores e visualizadores na sua hierarquia).
-          </p>
-        ) : (
-          <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
-            Exibindo usuários conforme suas permissões de visualização.
+        {listError && (
+          <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-400">
+            {listError}
           </p>
         )}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -202,9 +199,7 @@ export default function UsuariosPage() {
                       >
                         <td className="px-4 py-3 font-medium">{u.nome_completo}</td>
                         <td className="px-4 py-3">{u.email}</td>
-                        <td className="px-4 py-3">
-                          {(u.perfil as { nome: string } | undefined)?.nome ?? "—"}
-                        </td>
+                        <td className="px-4 py-3">{nomePerfilUsuario(u)}</td>
                         <td className="px-4 py-3 text-muted">
                           {(
                             u as Usuario & { criador?: { nome_completo: string } | null }

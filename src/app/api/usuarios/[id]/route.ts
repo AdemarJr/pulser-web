@@ -1,11 +1,19 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import type { AuthSession } from "@/lib/auth/session";
 import { requireSession } from "@/lib/auth/session";
 import {
   canAssignPerfilId,
   canDeleteUsuario,
   canEditUsuario,
+  canViewAllUsuariosEquipe,
   canViewUsuario,
 } from "@/lib/auth/usuarios-access";
+import {
+  USUARIO_DETAIL_SELECT,
+  USUARIO_DETAIL_SELECT_SEM_CRIADOR,
+  isUsuarioCriadorEmbedError,
+} from "@/lib/usuarios/select-fields";
 import { usuarioUpdateSchema } from "@/lib/validators/usuario";
 import {
   jsonError,
@@ -16,16 +24,31 @@ import {
 
 type Params = { params: Promise<{ id: string }> };
 
-async function fetchUsuario(id: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+async function fetchUsuario(id: string, supabase: SupabaseClient) {
+  let result = await supabase
     .from("usuarios")
-    .select(
-      "*, perfil:perfis(id, slug, nome, descricao, is_system), criador:usuarios!criado_por(nome_completo)"
-    )
+    .select(USUARIO_DETAIL_SELECT)
     .eq("id", id)
     .maybeSingle();
-  return { data, error };
+
+  if (
+    result.error &&
+    isUsuarioCriadorEmbedError(result.error.message)
+  ) {
+    result = await supabase
+      .from("usuarios")
+      .select(USUARIO_DETAIL_SELECT_SEM_CRIADOR)
+      .eq("id", id)
+      .maybeSingle();
+  }
+
+  return result;
+}
+
+async function clientForUsuariosRead(session: AuthSession) {
+  return canViewAllUsuariosEquipe(session)
+    ? createServiceClient()
+    : createClient();
 }
 
 async function fetchPermissoesPerfil(perfilId: string) {
@@ -48,7 +71,8 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const session = await requireSession();
     const { id } = await params;
-    const { data, error } = await fetchUsuario(id);
+    const supabase = await clientForUsuariosRead(session);
+    const { data, error } = await fetchUsuario(id, supabase);
 
     if (error) return jsonError(error.message, 500);
     if (!data) return jsonError("Usuário não encontrado", 404);
@@ -66,7 +90,8 @@ export async function PUT(request: Request, { params }: Params) {
   try {
     const session = await requireSession();
     const { id } = await params;
-    const { data: existing, error: findErr } = await fetchUsuario(id);
+    const readClient = await clientForUsuariosRead(session);
+    const { data: existing, error: findErr } = await fetchUsuario(id, readClient);
 
     if (findErr) return jsonError(findErr.message, 500);
     if (!existing) return jsonError("Usuário não encontrado", 404);
@@ -137,7 +162,8 @@ export async function DELETE(_request: Request, { params }: Params) {
       return jsonError("Você não pode excluir sua própria conta.", 400);
     }
 
-    const { data: existing, error: findErr } = await fetchUsuario(id);
+    const readClient = await clientForUsuariosRead(session);
+    const { data: existing, error: findErr } = await fetchUsuario(id, readClient);
     if (findErr) return jsonError(findErr.message, 500);
     if (!existing) return jsonError("Usuário não encontrado", 404);
     if (!canDeleteUsuario(session, existing)) return jsonForbidden();

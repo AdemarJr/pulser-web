@@ -21,16 +21,11 @@ export function Sidebar() {
     window.location.href = "/login";
   }
 
-  const escopoLabel = auth?.canViewAllEleitores
-    ? "Visão: todos os cadastros"
-    : "Visão: meus cadastros";
-
   return (
     <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-950 text-slate-100 lg:flex">
       <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-4">
         <Logo size="sm" />
         <UserSessionBadge variant="sidebar" />
-        <p className="text-xs text-slate-500">{escopoLabel}</p>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <NavLinks items={visible} />
