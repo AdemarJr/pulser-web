@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EleitorListActions } from "@/components/eleitores/eleitor-list-actions";
 import { Plus, Search } from "lucide-react";
 import { formatCPF } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/action-dialog";
+import { useConfirmDelete } from "@/hooks/use-confirm-delete";
 import type { AuthMe } from "@/lib/eleitores/client-permissions";
 import type { Eleitor } from "@/types/database";
 
@@ -78,9 +80,12 @@ export default function EleitoresPage() {
   const [escopo, setEscopo] = useState<"proprios" | "todos">("proprios");
   const [auth, setAuth] = useState<AuthMe | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [listError, setListError] = useState("");
+  const deleteConfirm = useConfirmDelete("eleitor");
 
   const load = useCallback(() => {
     setLoading(true);
+    setListError("");
     const params = new URLSearchParams();
     if (nome) params.set("nome", nome);
     params.set("limit", "100");
@@ -90,9 +95,13 @@ export default function EleitoresPage() {
       fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json()),
     ]).then(([listRes, meRes]) => {
       if (listRes.success) {
-        setItems(listRes.data.items);
-        setTotal(listRes.data.total);
+        setItems(listRes.data.items ?? []);
+        setTotal(listRes.data.total ?? 0);
         if (listRes.data.escopo) setEscopo(listRes.data.escopo);
+      } else {
+        setItems([]);
+        setTotal(0);
+        setListError(listRes.error ?? "Não foi possível carregar os eleitores.");
       }
       if (meRes.success) {
         setAuth({
@@ -107,25 +116,24 @@ export default function EleitoresPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  async function handleDelete(id: string, nomeEleitor: string) {
-    const ok = window.confirm(`Excluir o cadastro de "${nomeEleitor}"?`);
-    if (!ok) return;
+  function handleDelete(id: string, nomeEleitor: string) {
+    deleteConfirm.requestDelete(id, nomeEleitor, async () => {
+      setDeletingId(id);
+      const res = await fetch(`/api/eleitores/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      setDeletingId(null);
 
-    setDeletingId(id);
-    const res = await fetch(`/api/eleitores/${id}`, {
-      method: "DELETE",
-      credentials: "include",
+      if (!json.success) {
+        alert(json.error ?? "Não foi possível excluir");
+        return;
+      }
+      load();
     });
-    const json = await res.json();
-    setDeletingId(null);
-
-    if (!json.success) {
-      alert(json.error ?? "Não foi possível excluir");
-      return;
-    }
-    load();
   }
 
   const emptyMessage = loading ? "Carregando..." : "Nenhum eleitor encontrado.";
@@ -141,6 +149,11 @@ export default function EleitoresPage() {
         ) : (
           <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
             Exibindo todos os eleitores cadastrados no sistema (visão de gestão).
+          </p>
+        )}
+        {listError && (
+          <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-400">
+            {listError}
           </p>
         )}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -262,6 +275,7 @@ export default function EleitoresPage() {
           </CardContent>
         </Card>
       </div>
+      <ConfirmDialog {...deleteConfirm.dialogProps} />
     </>
   );
 }

@@ -109,6 +109,7 @@ export default function EditarEleitorPage() {
           initialValues={initialValues}
           onCancel={() => router.push(`/eleitores/${id}`)}
           onSuccess={() => router.push(`/eleitores/${id}`)}
+          onSuccessSecondary={() => router.push("/eleitores")}
         />
       </div>
     </>

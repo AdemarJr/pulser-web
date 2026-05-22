@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog, SuccessDialog } from "@/components/ui/action-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BairroZonaFields } from "@/components/eleitores/bairro-zona-fields";
 import { CidadeCadastroFields } from "@/components/eleitores/cidade-cadastro-fields";
@@ -59,14 +60,30 @@ type Props = {
   initialValues?: EleitorFormInput;
   onCancel: () => void;
   onSuccess: (id: string) => void;
+  onSuccessSecondary?: () => void;
+  successSecondaryLabel?: string;
 };
 
-export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSuccess }: Props) {
+export function EleitorForm({
+  mode,
+  eleitorId,
+  initialValues,
+  onCancel,
+  onSuccess,
+  onSuccessSecondary,
+  successSecondaryLabel = "Voltar à lista",
+}: Props) {
   const [estados, setEstados] = useState<{ id: string; nome: string; sigla: string }[]>([]);
   const [municipios, setMunicipios] = useState<{ id: string; nome: string }[]>([]);
   const [bairros, setBairros] = useState<{ id: string; nome: string }[]>([]);
   const [zonas, setZonas] = useState<{ id: string; numero: number }[]>([]);
   const [submitError, setSubmitError] = useState("");
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [savedId, setSavedId] = useState("");
+  const [savedName, setSavedName] = useState("");
+  const [pendingEditName, setPendingEditName] = useState("");
+  const pendingDataRef = useRef<EleitorFormInput | null>(null);
   const [loadingBairros, setLoadingBairros] = useState(false);
   const [loadingZonas, setLoadingZonas] = useState(false);
   const [municipiosCadastro, setMunicipiosCadastro] = useState<{ id: string; nome: string }[]>(
@@ -184,7 +201,7 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
     }
   }, [cidadeId, estadoId]);
 
-  async function onSubmit(data: EleitorFormInput) {
+  async function executeSave(data: EleitorFormInput): Promise<boolean> {
     setSubmitError("");
     const url = mode === "create" ? "/api/eleitores" : `/api/eleitores/${eleitorId}`;
     const method = mode === "create" ? "POST" : "PUT";
@@ -198,7 +215,7 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
     const json = await res.json();
     if (!json.success) {
       setSubmitError(json.error ?? "Erro ao salvar");
-      return;
+      return false;
     }
 
     if (mode === "create" && lembrarCidadePadrao && data.cidade_cadastro_id) {
@@ -210,7 +227,27 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
       });
     }
 
-    onSuccess(json.data?.id ?? eleitorId ?? "");
+    setSavedId(json.data?.id ?? eleitorId ?? "");
+    setSavedName(data.nome_completo);
+    setSuccessOpen(true);
+    return true;
+  }
+
+  function handleValidSubmit(data: EleitorFormInput) {
+    if (mode === "edit") {
+      pendingDataRef.current = data;
+      setPendingEditName(data.nome_completo);
+      setConfirmEditOpen(true);
+      return;
+    }
+    void executeSave(data);
+  }
+
+  async function handleConfirmEdit() {
+    const data = pendingDataRef.current;
+    if (!data) return;
+    setConfirmEditOpen(false);
+    await executeSave(data);
   }
 
   function handleEleitorNoMesmoMunicipio(checked: boolean) {
@@ -234,7 +271,8 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mx-auto w-full max-w-4xl space-y-6">
+    <>
+    <form onSubmit={handleSubmit(handleValidSubmit)} className="mx-auto w-full max-w-4xl space-y-6">
       {showCidadeCadastro && (
         <Card className="border-blue-200 dark:border-blue-900">
           <CardHeader>
@@ -505,5 +543,41 @@ export function EleitorForm({ mode, eleitorId, initialValues, onCancel, onSucces
         </Button>
       </div>
     </form>
+
+    <ConfirmDialog
+      open={confirmEditOpen}
+      onOpenChange={setConfirmEditOpen}
+      title="Confirmar alterações"
+      description={`Deseja salvar as alterações no cadastro de "${pendingEditName}"?`}
+      confirmLabel="Salvar alterações"
+      onConfirm={handleConfirmEdit}
+      loading={isSubmitting}
+    />
+
+    <SuccessDialog
+      open={successOpen}
+      onOpenChange={setSuccessOpen}
+      title={mode === "create" ? "Cadastro realizado com sucesso!" : "Alterações salvas!"}
+      description={
+        mode === "create"
+          ? `O eleitor ${savedName} foi cadastrado no sistema.`
+          : `Os dados de ${savedName} foram atualizados.`
+      }
+      primaryLabel="Ver cadastro"
+      onPrimary={() => {
+        setSuccessOpen(false);
+        onSuccess(savedId);
+      }}
+      secondaryLabel={onSuccessSecondary ? successSecondaryLabel : undefined}
+      onSecondary={
+        onSuccessSecondary
+          ? () => {
+              setSuccessOpen(false);
+              onSuccessSecondary();
+            }
+          : undefined
+      }
+    />
+    </>
   );
 }

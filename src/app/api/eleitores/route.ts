@@ -7,6 +7,11 @@ import {
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { eleitorPersistSchema, eleitorSchema } from "@/lib/validators/eleitor";
 import { resolveBairroId, resolveZonaId } from "@/lib/territorio/resolve-bairro-zona";
+import {
+  ELEITOR_LIST_SELECT,
+  ELEITOR_LIST_SELECT_SEM_CADASTRO,
+  isCidadeCadastroSchemaError,
+} from "@/lib/eleitores/select-fields";
 import { jsonError, jsonForbidden, jsonOk, jsonUnauthorized } from "@/lib/api/response";
 
 export async function GET(request: Request) {
@@ -19,47 +24,53 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const supabase = await createClient();
 
-    let query = supabase
-      .from("eleitores")
-      .select(
-        `*, bairro:bairros(nome), cidade:cidades(nome), cidade_cadastro:cidades!cidade_cadastro_id(nome, estado:estados(sigla)), zona_eleitoral:zonas_eleitorais(numero)`,
-        { count: "exact" }
-      )
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-
-    if (!canViewAllEleitores(session)) {
-      query = query.eq("cadastrado_por", session.user.id);
-    }
-
-    if (searchParams.get("nome")) {
-      query = query.ilike("nome_completo", `%${searchParams.get("nome")}%`);
-    }
-    if (searchParams.get("cpf")) {
-      query = query.eq("cpf", searchParams.get("cpf")!.replace(/\D/g, ""));
-    }
-    if (searchParams.get("cidade_id")) {
-      query = query.eq("cidade_id", searchParams.get("cidade_id")!);
-    }
-    if (searchParams.get("cidade_cadastro_id")) {
-      query = query.eq("cidade_cadastro_id", searchParams.get("cidade_cadastro_id")!);
-    }
-    if (searchParams.get("bairro_id")) {
-      query = query.eq("bairro_id", searchParams.get("bairro_id")!);
-    }
-    if (searchParams.get("zona_eleitoral_id")) {
-      query = query.eq("zona_eleitoral_id", searchParams.get("zona_eleitoral_id")!);
-    }
-    if (searchParams.get("situacao")) {
-      query = query.eq("situacao", searchParams.get("situacao")!);
-    }
-
     const page = Number(searchParams.get("page") ?? 1);
     const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
     const from = (page - 1) * limit;
-    query = query.range(from, from + limit - 1);
 
-    const { data, error, count } = await query;
+    function buildQuery(selectFields: string) {
+      let q = supabase
+        .from("eleitores")
+        .select(selectFields, { count: "exact" })
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (!canViewAllEleitores(session)) {
+        q = q.eq("cadastrado_por", session.user.id);
+      }
+      if (searchParams.get("nome")) {
+        q = q.ilike("nome_completo", `%${searchParams.get("nome")}%`);
+      }
+      if (searchParams.get("cpf")) {
+        q = q.eq("cpf", searchParams.get("cpf")!.replace(/\D/g, ""));
+      }
+      if (searchParams.get("cidade_id")) {
+        q = q.eq("cidade_id", searchParams.get("cidade_id")!);
+      }
+      if (searchParams.get("cidade_cadastro_id")) {
+        q = q.eq("cidade_cadastro_id", searchParams.get("cidade_cadastro_id")!);
+      }
+      if (searchParams.get("bairro_id")) {
+        q = q.eq("bairro_id", searchParams.get("bairro_id")!);
+      }
+      if (searchParams.get("zona_eleitoral_id")) {
+        q = q.eq("zona_eleitoral_id", searchParams.get("zona_eleitoral_id")!);
+      }
+      if (searchParams.get("situacao")) {
+        q = q.eq("situacao", searchParams.get("situacao")!);
+      }
+      return q.range(from, from + limit - 1);
+    }
+
+    let { data, error, count } = await buildQuery(ELEITOR_LIST_SELECT);
+
+    if (error && isCidadeCadastroSchemaError(error.message)) {
+      const retry = await buildQuery(ELEITOR_LIST_SELECT_SEM_CADASTRO);
+      data = retry.data;
+      error = retry.error;
+      count = retry.count;
+    }
+
     if (error) return jsonError(error.message, 500);
 
     return jsonOk({

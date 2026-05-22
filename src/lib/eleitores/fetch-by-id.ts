@@ -1,13 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-const ELEITOR_SELECT = `
-  *,
-  bairro:bairros(nome),
-  cidade:cidades(nome, estado:estados(sigla, nome)),
-  cidade_cadastro:cidades!cidade_cadastro_id(nome, estado:estados(sigla, nome)),
-  zona_eleitoral:zonas_eleitorais(numero),
-  cadastrador:usuarios!cadastrado_por(nome_completo)
-`;
+import {
+  ELEITOR_DETAIL_SELECT,
+  ELEITOR_DETAIL_SELECT_SEM_CADASTRO,
+  isCidadeCadastroSchemaError,
+} from "@/lib/eleitores/select-fields";
 
 export async function fetchEleitorById(
   supabase: SupabaseClient,
@@ -16,7 +12,7 @@ export async function fetchEleitorById(
 ) {
   let query = supabase
     .from("eleitores")
-    .select(ELEITOR_SELECT)
+    .select(ELEITOR_DETAIL_SELECT)
     .eq("id", id)
     .is("deleted_at", null);
 
@@ -24,5 +20,20 @@ export async function fetchEleitorById(
     query = query.eq("cadastrado_por", opts.cadastradoPor);
   }
 
-  return query.maybeSingle();
+  let result = await query.maybeSingle();
+
+  if (result.error && isCidadeCadastroSchemaError(result.error.message)) {
+    let fallback = supabase
+      .from("eleitores")
+      .select(ELEITOR_DETAIL_SELECT_SEM_CADASTRO)
+      .eq("id", id)
+      .is("deleted_at", null);
+
+    if (opts?.cadastradoPor) {
+      fallback = fallback.eq("cadastrado_por", opts.cadastradoPor);
+    }
+    result = await fallback.maybeSingle();
+  }
+
+  return result;
 }

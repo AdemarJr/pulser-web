@@ -105,6 +105,7 @@ export default function EditarUsuarioPage() {
           initialValues={initialValues}
           onCancel={() => router.push(`/usuarios/${id}`)}
           onSuccess={() => router.push(`/usuarios/${id}`)}
+          onSuccessSecondary={() => router.push("/usuarios")}
         />
       </div>
     </>

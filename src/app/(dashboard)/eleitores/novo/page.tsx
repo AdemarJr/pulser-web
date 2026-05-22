@@ -15,6 +15,7 @@ export default function NovoEleitorPage() {
           mode="create"
           onCancel={() => router.push("/eleitores")}
           onSuccess={(id) => router.push(`/eleitores/${id}`)}
+          onSuccessSecondary={() => router.push("/eleitores")}
         />
       </div>
     </>

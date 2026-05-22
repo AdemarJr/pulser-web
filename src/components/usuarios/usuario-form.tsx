@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, type Resolver, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog, SuccessDialog } from "@/components/ui/action-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, FormSelect } from "@/components/forms/form-field";
 import { PerfilPermissoesPanel } from "@/components/usuarios/perfil-permissoes-panel";
@@ -40,6 +41,8 @@ type Props = {
   initialValues?: UsuarioUpdateInput;
   onCancel: () => void;
   onSuccess: (id: string) => void;
+  onSuccessSecondary?: () => void;
+  successSecondaryLabel?: string;
 };
 
 export function UsuarioForm(props: Props) {
@@ -49,7 +52,7 @@ export function UsuarioForm(props: Props) {
   return <UsuarioFormEdit {...props} />;
 }
 
-function UsuarioFormCreate({ onCancel, onSuccess }: Props) {
+function UsuarioFormCreate({ onCancel, onSuccess, onSuccessSecondary, successSecondaryLabel }: Props) {
   const form = useForm<UsuarioUpdateInput>({
     resolver: zodResolver(usuarioCreateSchema) as Resolver<UsuarioUpdateInput>,
     defaultValues: emptyDefaults,
@@ -60,13 +63,22 @@ function UsuarioFormCreate({ onCancel, onSuccess }: Props) {
       form={form}
       onCancel={onCancel}
       onSuccess={onSuccess}
+      onSuccessSecondary={onSuccessSecondary}
+      successSecondaryLabel={successSecondaryLabel}
       submitUrl="/api/usuarios"
       method="POST"
     />
   );
 }
 
-function UsuarioFormEdit({ userId, initialValues, onCancel, onSuccess }: Props) {
+function UsuarioFormEdit({
+  userId,
+  initialValues,
+  onCancel,
+  onSuccess,
+  onSuccessSecondary,
+  successSecondaryLabel,
+}: Props) {
   const form = useForm<UsuarioUpdateInput>({
     resolver: zodResolver(usuarioUpdateSchema),
     defaultValues: initialValues ?? emptyDefaults,
@@ -78,6 +90,8 @@ function UsuarioFormEdit({ userId, initialValues, onCancel, onSuccess }: Props) 
       userId={userId}
       onCancel={onCancel}
       onSuccess={onSuccess}
+      onSuccessSecondary={onSuccessSecondary}
+      successSecondaryLabel={successSecondaryLabel}
       submitUrl={`/api/usuarios/${userId}`}
       method="PUT"
     />
@@ -90,6 +104,8 @@ function UsuarioFormBody({
   userId,
   onCancel,
   onSuccess,
+  onSuccessSecondary,
+  successSecondaryLabel = "Voltar à lista",
   submitUrl,
   method,
 }: {
@@ -98,11 +114,19 @@ function UsuarioFormBody({
   userId?: string;
   onCancel: () => void;
   onSuccess: (id: string) => void;
+  onSuccessSecondary?: () => void;
+  successSecondaryLabel?: string;
   submitUrl: string;
   method: "POST" | "PUT";
 }) {
   const [perfis, setPerfis] = useState<PerfilOption[]>([]);
   const [submitError, setSubmitError] = useState("");
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [savedId, setSavedId] = useState("");
+  const [savedName, setSavedName] = useState("");
+  const [pendingEditName, setPendingEditName] = useState("");
+  const pendingDataRef = useRef<UsuarioCreateInput | UsuarioUpdateInput | null>(null);
 
   const {
     register,
@@ -121,7 +145,7 @@ function UsuarioFormBody({
       .then((j) => j.success && setPerfis(j.data.perfis ?? []));
   }, []);
 
-  async function onSubmit(data: UsuarioCreateInput | UsuarioUpdateInput) {
+  async function executeSave(data: UsuarioCreateInput | UsuarioUpdateInput): Promise<boolean> {
     setSubmitError("");
     const body = { ...data };
     if (mode === "edit" && !body.password) {
@@ -137,15 +161,36 @@ function UsuarioFormBody({
     const json = await res.json();
     if (!json.success) {
       setSubmitError(json.error ?? "Erro ao salvar");
+      return false;
+    }
+    setSavedId(json.data?.id ?? userId ?? "");
+    setSavedName(data.nome_completo);
+    setSuccessOpen(true);
+    return true;
+  }
+
+  function handleValidSubmit(data: UsuarioCreateInput | UsuarioUpdateInput) {
+    if (mode === "edit") {
+      pendingDataRef.current = data;
+      setPendingEditName(data.nome_completo);
+      setConfirmEditOpen(true);
       return;
     }
-    onSuccess(json.data?.id ?? userId ?? "");
+    void executeSave(data);
+  }
+
+  async function handleConfirmEdit() {
+    const data = pendingDataRef.current;
+    if (!data) return;
+    setConfirmEditOpen(false);
+    await executeSave(data);
   }
 
   const perfisAtribuiveis = perfis.filter((p) => p.pode_atribuir);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mx-auto w-full max-w-3xl space-y-6">
+    <>
+    <form onSubmit={handleSubmit(handleValidSubmit)} className="mx-auto w-full max-w-3xl space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Dados do usuário</CardTitle>
@@ -225,5 +270,41 @@ function UsuarioFormBody({
         </Button>
       </div>
     </form>
+
+    <ConfirmDialog
+      open={confirmEditOpen}
+      onOpenChange={setConfirmEditOpen}
+      title="Confirmar alterações"
+      description={`Deseja salvar as alterações do usuário "${pendingEditName}"?`}
+      confirmLabel="Salvar alterações"
+      onConfirm={handleConfirmEdit}
+      loading={isSubmitting}
+    />
+
+    <SuccessDialog
+      open={successOpen}
+      onOpenChange={setSuccessOpen}
+      title={mode === "create" ? "Usuário cadastrado com sucesso!" : "Alterações salvas!"}
+      description={
+        mode === "create"
+          ? `${savedName} foi adicionado ao sistema.`
+          : `Os dados de ${savedName} foram atualizados.`
+      }
+      primaryLabel="Ver usuário"
+      onPrimary={() => {
+        setSuccessOpen(false);
+        onSuccess(savedId);
+      }}
+      secondaryLabel={onSuccessSecondary ? successSecondaryLabel : undefined}
+      onSecondary={
+        onSuccessSecondary
+          ? () => {
+              setSuccessOpen(false);
+              onSuccessSecondary();
+            }
+          : undefined
+      }
+    />
+    </>
   );
 }

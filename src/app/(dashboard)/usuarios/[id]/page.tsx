@@ -7,6 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { UsuarioDetail, type UsuarioDetalhe } from "@/components/usuarios/usuario-detail";
+import { ConfirmDialog } from "@/components/ui/action-dialog";
+import { useConfirmDelete } from "@/hooks/use-confirm-delete";
 import {
   authMeUsuariosFromApi,
   canDeleteUsuarioClient,
@@ -24,6 +26,7 @@ export default function UsuarioDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const deleteConfirm = useConfirmDelete("usuário");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -57,26 +60,23 @@ export default function UsuarioDetalhePage() {
     load();
   }, [load]);
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!usuario) return;
-    const ok = window.confirm(
-      `Excluir o usuário "${usuario.nome_completo}"? Esta ação não pode ser desfeita.`
-    );
-    if (!ok) return;
+    deleteConfirm.requestDelete(id, usuario.nome_completo, async () => {
+      setDeleting(true);
+      const res = await fetch(`/api/usuarios/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      setDeleting(false);
 
-    setDeleting(true);
-    const res = await fetch(`/api/usuarios/${id}`, {
-      method: "DELETE",
-      credentials: "include",
+      if (!json.success) {
+        alert(json.error ?? "Não foi possível excluir");
+        return;
+      }
+      router.push("/usuarios");
     });
-    const json = await res.json();
-    setDeleting(false);
-
-    if (!json.success) {
-      alert(json.error ?? "Não foi possível excluir");
-      return;
-    }
-    router.push("/usuarios");
   }
 
   return (
@@ -106,6 +106,7 @@ export default function UsuarioDetalhePage() {
           />
         )}
       </div>
+      <ConfirmDialog {...deleteConfirm.dialogProps} />
     </>
   );
 }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsuarioListActions } from "@/components/usuarios/usuario-list-actions";
 import { Plus } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/action-dialog";
+import { useConfirmDelete } from "@/hooks/use-confirm-delete";
 import {
   authMeUsuariosFromApi,
   canManageUsuariosList,
@@ -77,6 +79,7 @@ export default function UsuariosPage() {
   const [podeCriar, setPodeCriar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteConfirm = useConfirmDelete("usuário");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -98,23 +101,22 @@ export default function UsuariosPage() {
     load();
   }, [load]);
 
-  async function handleDelete(id: string, nome: string) {
-    const ok = window.confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`);
-    if (!ok) return;
+  function handleDelete(id: string, nome: string) {
+    deleteConfirm.requestDelete(id, nome, async () => {
+      setDeletingId(id);
+      const res = await fetch(`/api/usuarios/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      setDeletingId(null);
 
-    setDeletingId(id);
-    const res = await fetch(`/api/usuarios/${id}`, {
-      method: "DELETE",
-      credentials: "include",
+      if (!json.success) {
+        alert(json.error ?? "Não foi possível excluir");
+        return;
+      }
+      load();
     });
-    const json = await res.json();
-    setDeletingId(null);
-
-    if (!json.success) {
-      alert(json.error ?? "Não foi possível excluir");
-      return;
-    }
-    load();
   }
 
   const emptyMessage = loading ? "Carregando..." : "Nenhum usuário encontrado.";
@@ -237,6 +239,7 @@ export default function UsuariosPage() {
           </CardContent>
         </Card>
       </div>
+      <ConfirmDialog {...deleteConfirm.dialogProps} />
     </>
   );
 }

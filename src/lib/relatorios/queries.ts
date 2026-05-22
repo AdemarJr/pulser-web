@@ -119,10 +119,10 @@ export async function buildRelatorioDataset(
     .select(
       `id, nome_completo, cpf, situacao, created_at, cadastrado_por,
        bairro:bairros(nome),
-       cidade:cidades(nome),
-       estado:estados(sigla, nome),
+       cidade:cidades!cidade_id(nome),
+       estado:estados!estado_id(sigla, nome),
        zona_eleitoral:zonas_eleitorais(numero),
-       usuario:usuarios(nome_completo)`
+       usuario:usuarios!cadastrado_por(nome_completo)`
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });

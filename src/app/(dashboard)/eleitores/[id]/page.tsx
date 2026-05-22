@@ -7,6 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { EleitorDetail } from "@/components/eleitores/eleitor-detail";
+import { ConfirmDialog } from "@/components/ui/action-dialog";
+import { useConfirmDelete } from "@/hooks/use-confirm-delete";
 import type { AuthMe } from "@/lib/eleitores/client-permissions";
 import type { Eleitor } from "@/types/database";
 
@@ -20,6 +22,7 @@ export default function EleitorDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const deleteConfirm = useConfirmDelete("eleitor");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -54,26 +57,23 @@ export default function EleitorDetalhePage() {
     load();
   }, [load]);
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!eleitor) return;
-    const ok = window.confirm(
-      `Excluir o cadastro de "${eleitor.nome_completo}"? Esta ação não pode ser desfeita.`
-    );
-    if (!ok) return;
+    deleteConfirm.requestDelete(id, eleitor.nome_completo, async () => {
+      setDeleting(true);
+      const res = await fetch(`/api/eleitores/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      setDeleting(false);
 
-    setDeleting(true);
-    const res = await fetch(`/api/eleitores/${id}`, {
-      method: "DELETE",
-      credentials: "include",
+      if (!json.success) {
+        alert(json.error ?? "Não foi possível excluir");
+        return;
+      }
+      router.push("/eleitores");
     });
-    const json = await res.json();
-    setDeleting(false);
-
-    if (!json.success) {
-      alert(json.error ?? "Não foi possível excluir");
-      return;
-    }
-    router.push("/eleitores");
   }
 
   return (
@@ -102,6 +102,7 @@ export default function EleitorDetalhePage() {
           />
         )}
       </div>
+      <ConfirmDialog {...deleteConfirm.dialogProps} />
     </>
   );
 }

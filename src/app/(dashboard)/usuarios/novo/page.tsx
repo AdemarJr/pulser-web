@@ -74,6 +74,7 @@ export default function NovoUsuarioPage() {
           mode="create"
           onCancel={() => router.push("/usuarios")}
           onSuccess={(id) => router.push(`/usuarios/${id}`)}
+          onSuccessSecondary={() => router.push("/usuarios")}
         />
       </div>
     </>
