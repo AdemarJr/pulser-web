@@ -22,6 +22,7 @@ export type PermissionSlug =
 export const PERFIL_PERMISSIONS: Record<string, PermissionSlug[]> = {
   admin_geral: Object.values(PERMISSIONS),
   coordenador: [
+    PERMISSIONS.USUARIOS_GERENCIAR,
     PERMISSIONS.USUARIOS_VISUALIZAR,
     PERMISSIONS.ELEITORES_VISUALIZAR,
     PERMISSIONS.ELEITORES_EDITAR_PROPRIOS,

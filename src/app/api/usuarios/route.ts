@@ -1,8 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireSession } from "@/lib/auth/session";
-import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
-import { usuarioSchema } from "@/lib/validators/eleitor";
+import {
+  canAssignPerfilId,
+  canManageUsuarios,
+  canViewUsuario,
+  canViewUsuarios,
+} from "@/lib/auth/usuarios-access";
+import { podeVisualizarUsuario } from "@/lib/auth/perfil-hierarquia";
+import { usuarioCreateSchema } from "@/lib/validators/usuario";
 import {
   jsonError,
   jsonForbidden,
@@ -13,16 +19,27 @@ import {
 export async function GET() {
   try {
     const session = await requireSession();
-    if (!hasPermission(session.permissions, PERMISSIONS.USUARIOS_VISUALIZAR)) {
-      return jsonForbidden();
-    }
+    if (!canViewUsuarios(session)) return jsonForbidden();
+
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("usuarios")
-      .select("*, perfil:perfis(nome, slug)")
+      .select("*, perfil:perfis(id, slug, nome, descricao)")
       .order("nome_completo");
+
     if (error) return jsonError(error.message, 500);
-    return jsonOk(data);
+
+    const slugAtor = session.profile.perfil?.slug ?? "";
+    const filtrados = (data ?? []).filter((u) => {
+      const slug = (u.perfil as { slug: string } | null)?.slug ?? "";
+      return podeVisualizarUsuario(
+        slugAtor,
+        slug,
+        u.id === session.user.id
+      );
+    });
+
+    return jsonOk(filtrados);
   } catch {
     return jsonUnauthorized();
   }
@@ -31,14 +48,23 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireSession();
-    if (!hasPermission(session.permissions, PERMISSIONS.USUARIOS_GERENCIAR)) {
-      return jsonForbidden();
-    }
+    if (!canManageUsuarios(session)) return jsonForbidden();
 
     const body = await request.json();
-    const parsed = usuarioSchema.safeParse(body);
-    if (!parsed.success || !parsed.data.password) {
-      return jsonError("Dados inválidos ou senha obrigatória");
+    const parsed = usuarioCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonError(parsed.error.issues[0]?.message ?? "Dados inválidos");
+    }
+
+    const supabase = await createClient();
+    const { data: perfilAlvo } = await supabase
+      .from("perfis")
+      .select("slug")
+      .eq("id", parsed.data.perfil_id)
+      .single();
+
+    if (!perfilAlvo || !canAssignPerfilId(session, perfilAlvo.slug)) {
+      return jsonError("Você não pode atribuir este perfil (hierarquia).", 403);
     }
 
     const service = await createServiceClient();
@@ -47,19 +73,24 @@ export async function POST(request: Request) {
         email: parsed.data.email,
         password: parsed.data.password,
         email_confirm: true,
+        user_metadata: { nome_completo: parsed.data.nome_completo },
       });
 
     if (authError) return jsonError(authError.message, 500);
 
-    const { data, error } = await service.from("usuarios").insert({
-      id: authUser.user.id,
-      nome_completo: parsed.data.nome_completo,
-      email: parsed.data.email,
-      telefone: parsed.data.telefone,
-      cpf: parsed.data.cpf,
-      perfil_id: parsed.data.perfil_id,
-      status: parsed.data.status,
-    }).select("*, perfil:perfis(*)").single();
+    const { data, error } = await service
+      .from("usuarios")
+      .insert({
+        id: authUser.user.id,
+        nome_completo: parsed.data.nome_completo,
+        email: parsed.data.email,
+        telefone: parsed.data.telefone || null,
+        cpf: parsed.data.cpf || null,
+        perfil_id: parsed.data.perfil_id,
+        status: parsed.data.status,
+      })
+      .select("*, perfil:perfis(id, slug, nome, descricao)")
+      .single();
 
     if (error) return jsonError(error.message, 500);
     return jsonOk(data, 201);

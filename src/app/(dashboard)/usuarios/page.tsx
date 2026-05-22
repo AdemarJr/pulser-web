@@ -1,15 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { UsuarioListActions } from "@/components/usuarios/usuario-list-actions";
+import { Plus } from "lucide-react";
+import {
+  authMeUsuariosFromApi,
+  canManageUsuariosList,
+  type AuthMeUsuarios,
+} from "@/lib/usuarios/client-permissions";
 import type { Usuario } from "@/types/database";
 
-function UsuarioCard({ u }: { u: Usuario }) {
-  const perfil = (u.perfil as { nome: string } | undefined)?.nome ?? "-";
+function UsuarioCard({
+  u,
+  auth,
+  onDelete,
+  deletingId,
+  onOpen,
+}: {
+  u: Usuario;
+  auth: AuthMeUsuarios | null;
+  onDelete: (id: string, nome: string) => void;
+  deletingId: string | null;
+  onOpen: (id: string) => void;
+}) {
+  const perfil = (u.perfil as { nome: string; slug: string } | undefined)?.nome ?? "—";
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(u.id)}
+      onKeyDown={(ev) => ev.key === "Enter" && onOpen(u.id)}
+      className="cursor-pointer rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:border-blue-300 dark:hover:border-blue-700"
+    >
       <p className="font-semibold text-foreground">{u.nome_completo}</p>
       <p className="mt-1 truncate text-sm text-muted">{u.email}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -20,34 +48,102 @@ function UsuarioCard({ u }: { u: Usuario }) {
           {u.status}
         </span>
       </div>
+      <UsuarioListActions
+        usuario={{
+          id: u.id,
+          nome_completo: u.nome_completo,
+          perfil: u.perfil as { slug: string } | null,
+        }}
+        auth={auth}
+        onDelete={onDelete}
+        deletingId={deletingId}
+        compact
+      />
     </div>
   );
 }
 
 export default function UsuariosPage() {
+  const router = useRouter();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [auth, setAuth] = useState<AuthMeUsuarios | null>(null);
+  const [podeCriar, setPodeCriar] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch("/api/usuarios", { credentials: "include" }).then((r) => r.json()),
+      fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json()),
+    ]).then(([listRes, meRes]) => {
+      if (listRes.success) setUsuarios(listRes.data);
+      if (meRes.success) {
+        const me = authMeUsuariosFromApi(meRes.data);
+        setAuth(me);
+        setPodeCriar(canManageUsuariosList(me));
+      }
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
-    fetch("/api/usuarios")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success) setUsuarios(j.data);
-        setLoading(false);
-      });
-  }, []);
+    load();
+  }, [load]);
+
+  async function handleDelete(id: string, nome: string) {
+    const ok = window.confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`);
+    if (!ok) return;
+
+    setDeletingId(id);
+    const res = await fetch(`/api/usuarios/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const json = await res.json();
+    setDeletingId(null);
+
+    if (!json.success) {
+      alert(json.error ?? "Não foi possível excluir");
+      return;
+    }
+    load();
+  }
+
+  const emptyMessage = loading ? "Carregando..." : "Nenhum usuário encontrado.";
 
   return (
     <>
       <Header title="Usuários" />
       <div className="page-content">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted">
+            Gerencie contas, perfis e permissões herdadas por hierarquia.
+          </p>
+          {podeCriar && (
+            <Link href="/usuarios/novo" className="shrink-0">
+              <Button className="w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                Novo usuário
+              </Button>
+            </Link>
+          )}
+        </div>
+
         <div className="space-y-3 lg:hidden">
-          {loading ? (
-            <p className="py-8 text-center text-sm text-muted">Carregando...</p>
-          ) : usuarios.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">Nenhum usuário.</p>
+          {loading || usuarios.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">{emptyMessage}</p>
           ) : (
-            usuarios.map((u) => <UsuarioCard key={u.id} u={u} />)
+            usuarios.map((u) => (
+              <UsuarioCard
+                key={u.id}
+                u={u}
+                auth={auth}
+                onDelete={handleDelete}
+                deletingId={deletingId}
+                onOpen={(id) => router.push(`/usuarios/${id}`)}
+              />
+            ))
           )}
         </div>
 
@@ -57,37 +153,64 @@ export default function UsuariosPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-border bg-slate-100 dark:bg-slate-800">
                   <tr>
-                    <th className="px-4 py-3 text-left">Nome</th>
-                    <th className="px-4 py-3 text-left">E-mail</th>
-                    <th className="px-4 py-3 text-left">Perfil</th>
-                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left font-medium">Nome</th>
+                    <th className="px-4 py-3 text-left font-medium">E-mail</th>
+                    <th className="px-4 py-3 text-left font-medium">Perfil</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
                         Carregando...
+                      </td>
+                    </tr>
+                  ) : usuarios.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                        Nenhum usuário encontrado.
                       </td>
                     </tr>
                   ) : (
                     usuarios.map((u) => (
                       <tr
                         key={u.id}
-                        className="border-b border-border hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        className="cursor-pointer border-b border-border hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                        onClick={() => router.push(`/usuarios/${u.id}`)}
                       >
                         <td className="px-4 py-3 font-medium">{u.nome_completo}</td>
                         <td className="px-4 py-3">{u.email}</td>
                         <td className="px-4 py-3">
-                          {(u.perfil as { nome: string } | undefined)?.nome ?? "-"}
+                          {(u.perfil as { nome: string } | undefined)?.nome ?? "—"}
                         </td>
                         <td className="px-4 py-3 capitalize">{u.status}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end">
+                            <UsuarioListActions
+                              usuario={{
+                                id: u.id,
+                                nome_completo: u.nome_completo,
+                                perfil: u.perfil as { slug: string } | null,
+                              }}
+                              auth={auth}
+                              onDelete={handleDelete}
+                              deletingId={deletingId}
+                            />
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
+            {!loading && usuarios.length > 0 && (
+              <p className="border-t border-border px-4 py-3 text-sm text-muted">
+                {usuarios.length} usuário(s)
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

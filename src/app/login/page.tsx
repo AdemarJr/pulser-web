@@ -73,7 +73,7 @@ export default function LoginPage() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin ou seu@email.com"
+              placeholder="Admin-super ou seu@email.com"
               error={errors.email ? { type: "manual", message: errors.email } : undefined}
               required
             />

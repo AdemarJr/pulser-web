@@ -95,10 +95,15 @@ export const eleitorSchema = z.object({
 export type EleitorFormData = z.infer<typeof eleitorSchema>;
 export type EleitorFormInput = z.input<typeof eleitorSchema>;
 
+const LOGIN_ALIASES: Record<string, string> = {
+  admin: "admin@admin.com",
+  "admin-super": "admin@admin.com",
+};
+
 const loginEmailSchema = z
   .string()
   .trim()
-  .transform((value) => (value === "admin" ? "admin@admin.com" : value))
+  .transform((value) => LOGIN_ALIASES[value.toLowerCase()] ?? value)
   .pipe(z.string().email("E-mail inválido"));
 
 export const loginSchema = z.object({
@@ -110,19 +115,4 @@ export const recuperarSenhaSchema = z.object({
   email: z.string().trim().email("E-mail inválido"),
 });
 
-export const usuarioSchema = z.object({
-  nome_completo: nomeSchema,
-  email: z.string().trim().email("E-mail inválido"),
-  telefone: telefoneOpcionalSchema,
-  cpf: z
-    .string()
-    .optional()
-    .transform((v) => (v ? v.replace(/\D/g, "") : ""))
-    .refine((v) => !v || isValidCPF(v), "CPF inválido"),
-  perfil_id: z.string().uuid("Perfil inválido"),
-  status: z.enum(["ativo", "inativo", "bloqueado"]).default("ativo"),
-  password: z
-    .string()
-    .optional()
-    .refine((v) => !v || v.length >= 8, "Senha deve ter no mínimo 8 caracteres"),
-});
+export { usuarioCreateSchema as usuarioSchema } from "@/lib/validators/usuario";
