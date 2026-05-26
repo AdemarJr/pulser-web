@@ -33,9 +33,10 @@ export function BairroZonaFields({
 }: Props) {
   const [modoBairroNovo, setModoBairroNovo] = useState(false);
   const [modoZonaNova, setModoZonaNova] = useState(false);
+  const novoBairroNome = watch("novo_bairro_nome") ?? "";
 
   useEffect(() => {
-    setModoBairroNovo(bairros.length === 0);
+    setModoBairroNovo(bairros.length === 0 || Boolean(novoBairroNome.trim()));
     setModoZonaNova(zonas.length === 0);
     if (bairros.length === 0) {
       setValue("bairro_id", "");
@@ -43,7 +44,7 @@ export function BairroZonaFields({
     if (zonas.length === 0) {
       setValue("zona_eleitoral_id", "");
     }
-  }, [bairros.length, zonas.length, cidadeId, setValue]);
+  }, [bairros.length, zonas.length, cidadeId, novoBairroNome, setValue]);
 
   return (
     <>
