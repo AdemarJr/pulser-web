@@ -16,6 +16,7 @@ import {
   isCidadeCadastroSchemaError,
 } from "@/lib/eleitores/select-fields";
 import { jsonError, jsonForbidden, jsonOk, jsonUnauthorized } from "@/lib/api/response";
+import { mensagemErroSalvarEleitor } from "@/lib/eleitores/save-error";
 
 export async function GET(request: Request) {
   try {
@@ -140,6 +141,7 @@ export async function POST(request: Request) {
       titulo_eleitor: rest.titulo_eleitor || null,
       secao_eleitoral: rest.secao_eleitoral || null,
       municipio_eleitoral: rest.municipio_eleitoral || null,
+      rg: rest.rg || null,
       bairro_id: bairroId,
       zona_eleitoral_id: zonaId,
     });
@@ -159,7 +161,7 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) return jsonError(error.message, 500);
+    if (error) return jsonError(mensagemErroSalvarEleitor(error.message), 500);
     return jsonOk(data, 201);
   } catch {
     return jsonUnauthorized();

@@ -20,7 +20,7 @@ export function eleitorToFormInput(e: Eleitor): EleitorFormInput {
     data_nascimento: dataNasc,
     sexo: e.sexo as EleitorFormInput["sexo"],
     cpf: maskCPF(e.cpf),
-    rg: maskRG(e.rg),
+    rg: e.rg ? maskRG(e.rg) : "",
     telefone_principal: maskPhone(e.telefone_principal),
     telefone_secundario: e.telefone_secundario ? maskPhone(e.telefone_secundario) : "",
     email: e.email ?? "",

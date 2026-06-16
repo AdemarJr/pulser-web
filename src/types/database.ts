@@ -78,7 +78,7 @@ export interface Eleitor {
   data_nascimento: string;
   sexo: string;
   cpf: string;
-  rg: string;
+  rg: string | null;
   telefone_principal: string;
   telefone_secundario: string | null;
   email: string | null;

@@ -8,6 +8,7 @@ import {
 import { fetchEleitorById } from "@/lib/eleitores/fetch-by-id";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { eleitorSchema, eleitorPersistSchema } from "@/lib/validators/eleitor";
+import { mensagemErroSalvarEleitor } from "@/lib/eleitores/save-error";
 import {
   resolveBairroId,
   resolveZonaIdOpcional,
@@ -131,6 +132,7 @@ export async function PUT(request: Request, { params }: Params) {
       titulo_eleitor: rest.titulo_eleitor || null,
       secao_eleitoral: rest.secao_eleitoral || null,
       municipio_eleitoral: rest.municipio_eleitoral || null,
+      rg: rest.rg || null,
       bairro_id: bairroId,
       zona_eleitoral_id: zonaId,
     });
@@ -148,7 +150,7 @@ export async function PUT(request: Request, { params }: Params) {
       .select()
       .single();
 
-    if (error) return jsonError(error.message, 500);
+    if (error) return jsonError(mensagemErroSalvarEleitor(error.message), 500);
     return jsonOk(data);
   } catch {
     return jsonUnauthorized();

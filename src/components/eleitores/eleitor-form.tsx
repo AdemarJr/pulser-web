@@ -11,6 +11,7 @@ import { CidadeCadastroFields } from "@/components/eleitores/cidade-cadastro-fie
 import { FormField, FormSelect } from "@/components/forms/form-field";
 import { unwrapTerritorioList } from "@/lib/api/territorio-cadastro";
 import { eleitorSchema, type EleitorFormInput } from "@/lib/validators/eleitor";
+import { mensagemErroSalvarEleitor } from "@/lib/eleitores/save-error";
 import {
   maskCEP,
   maskCPF,
@@ -443,7 +444,7 @@ export function EleitorForm({
     });
     const json = await res.json();
     if (!json.success) {
-      setSubmitError(json.error ?? "Erro ao salvar");
+      setSubmitError(mensagemErroSalvarEleitor(json.error ?? "Erro ao salvar"));
       return false;
     }
 
@@ -638,6 +639,7 @@ export function EleitorForm({
           <FormField
             label="Nome completo"
             required
+            hint="Informe nome e sobrenome (mínimo 5 caracteres)"
             error={errors.nome_completo}
             {...register("nome_completo")}
           />
@@ -652,7 +654,7 @@ export function EleitorForm({
           />
           <FormField
             label="RG"
-            required
+            hint="Opcional"
             error={errors.rg}
             value={watch("rg")}
             onChange={(e) => setValue("rg", maskRG(e.target.value), { shouldValidate: true })}

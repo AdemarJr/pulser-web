@@ -1,0 +1,2 @@
+ALTER TABLE eleitores
+  ALTER COLUMN rg DROP NOT NULL;

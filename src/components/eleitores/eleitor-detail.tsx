@@ -107,7 +107,7 @@ export function EleitorDetail({ eleitor, auth, onDelete, deleting }: Props) {
 
       <Section title="Dados pessoais">
         <Field label="CPF" value={formatCPF(eleitor.cpf)} />
-        <Field label="RG" value={maskRG(eleitor.rg)} />
+        <Field label="RG" value={eleitor.rg ? maskRG(eleitor.rg) : "—"} />
         <Field label="Data de nascimento" value={dataNasc} />
         <Field label="Sexo" value={eleitor.sexo.replace("_", " ")} />
         <Field label="Telefone principal" value={formatPhone(eleitor.telefone_principal)} />

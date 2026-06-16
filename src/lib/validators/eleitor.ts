@@ -3,11 +3,29 @@ import {
   cepSchema,
   cpfSchema,
   emailOpcionalSchema,
-  nomeSchema,
   telefoneOpcionalSchema,
   telefoneSchema,
   uuidRequired,
 } from "@/lib/validators/common";
+
+const nomeCompletoEleitorSchema = z
+  .string()
+  .trim()
+  .min(5, "Informe o nome completo")
+  .max(200, "Nome muito longo")
+  .refine((v) => /[A-Za-zÀ-ÿ]/.test(v), "Nome deve conter letras")
+  .refine((v) => !/^\d+$/.test(v.replace(/\s/g, "")), "Nome não pode ser apenas números")
+  .refine(
+    (v) => v.split(/\s+/).filter((part) => part.length >= 2).length >= 2,
+    "Informe nome e sobrenome"
+  );
+
+const rgOpcional = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ?? "").replace(/\D/g, ""))
+  .refine((v) => v === "" || v.length >= 5, "RG inválido");
 
 const tituloEleitorOpcional = z
   .string()
@@ -31,7 +49,7 @@ const municipioEleitoralOpcional = z
   .transform((v) => v ?? "");
 
 const eleitorCamposComuns = {
-  nome_completo: nomeSchema,
+  nome_completo: nomeCompletoEleitorSchema,
   nome_social: z.string().trim().max(200).optional().or(z.literal("")),
   data_nascimento: z
     .string()
@@ -40,11 +58,7 @@ const eleitorCamposComuns = {
     .refine((d) => new Date(d) <= new Date(), "Data não pode ser futura"),
   sexo: z.enum(["masculino", "feminino", "outro", "nao_informar"]),
   cpf: cpfSchema,
-  rg: z
-    .string()
-    .min(1, "RG obrigatório")
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length >= 5, "RG inválido"),
+  rg: rgOpcional,
   telefone_principal: telefoneSchema,
   telefone_secundario: telefoneOpcionalSchema,
   email: emailOpcionalSchema,
@@ -80,6 +94,7 @@ export const eleitorPersistSchema = z.object({
   titulo_eleitor: z.string().nullable(),
   secao_eleitoral: z.string().nullable(),
   municipio_eleitoral: z.string().nullable(),
+  rg: z.string().nullable(),
 });
 
 export const eleitorSchema = z
