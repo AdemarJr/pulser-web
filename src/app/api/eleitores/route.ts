@@ -6,7 +6,10 @@ import {
 } from "@/lib/auth/eleitores-access";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { eleitorPersistSchema, eleitorSchema } from "@/lib/validators/eleitor";
-import { resolveBairroId, resolveZonaId } from "@/lib/territorio/resolve-bairro-zona";
+import {
+  resolveBairroId,
+  resolveZonaIdOpcional,
+} from "@/lib/territorio/resolve-bairro-zona";
 import {
   ELEITOR_LIST_SELECT,
   ELEITOR_LIST_SELECT_SEM_CADASTRO,
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
 
     let bairroId: string;
-    let zonaId: string;
+    let zonaId: string | null;
     try {
       bairroId = await resolveBairroId(
         supabase,
@@ -113,7 +116,7 @@ export async function POST(request: Request) {
         parsed.data.bairro_id || undefined,
         parsed.data.novo_bairro_nome
       );
-      zonaId = await resolveZonaId(
+      zonaId = await resolveZonaIdOpcional(
         supabase,
         parsed.data.cidade_id,
         parsed.data.estado_id,
@@ -134,6 +137,9 @@ export async function POST(request: Request) {
 
     const persistParsed = eleitorPersistSchema.safeParse({
       ...rest,
+      titulo_eleitor: rest.titulo_eleitor || null,
+      secao_eleitoral: rest.secao_eleitoral || null,
+      municipio_eleitoral: rest.municipio_eleitoral || null,
       bairro_id: bairroId,
       zona_eleitoral_id: zonaId,
     });

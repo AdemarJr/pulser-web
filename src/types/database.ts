@@ -90,10 +90,10 @@ export interface Eleitor {
   cidade_id: string;
   cidade_cadastro_id: string;
   estado_id: string;
-  titulo_eleitor: string;
-  zona_eleitoral_id: string;
-  secao_eleitoral: string;
-  municipio_eleitoral: string;
+  titulo_eleitor: string | null;
+  zona_eleitoral_id: string | null;
+  secao_eleitoral: string | null;
+  municipio_eleitoral: string | null;
   situacao_eleitoral: EleitorSituacaoEleitoral;
   local_votacao: string | null;
   lideranca_responsavel: string | null;

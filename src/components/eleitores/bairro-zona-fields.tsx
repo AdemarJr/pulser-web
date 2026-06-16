@@ -18,6 +18,7 @@ type Props = {
   watch: UseFormWatch<EleitorFormInput>;
   setValue: UseFormSetValue<EleitorFormInput>;
   errors: FieldErrors<EleitorFormInput>;
+  variant?: "bairro" | "zona" | "ambos";
 };
 
 export function BairroZonaFields({
@@ -30,24 +31,29 @@ export function BairroZonaFields({
   watch,
   setValue,
   errors,
+  variant = "ambos",
 }: Props) {
   const [modoBairroNovo, setModoBairroNovo] = useState(false);
   const [modoZonaNova, setModoZonaNova] = useState(false);
   const novoBairroNome = watch("novo_bairro_nome") ?? "";
+  const showBairro = variant === "bairro" || variant === "ambos";
+  const showZona = variant === "zona" || variant === "ambos";
 
   useEffect(() => {
-    setModoBairroNovo(bairros.length === 0 || Boolean(novoBairroNome.trim()));
-    setModoZonaNova(zonas.length === 0);
-    if (bairros.length === 0) {
-      setValue("bairro_id", "");
+    if (showBairro) {
+      setModoBairroNovo(bairros.length === 0 || Boolean(novoBairroNome.trim()));
+      if (bairros.length === 0) {
+        setValue("bairro_id", "");
+      }
     }
-    if (zonas.length === 0) {
+    if (showZona && zonas.length === 0) {
       setValue("zona_eleitoral_id", "");
     }
-  }, [bairros.length, zonas.length, cidadeId, novoBairroNome, setValue]);
+  }, [bairros.length, zonas.length, cidadeId, novoBairroNome, setValue, showBairro, showZona]);
 
   return (
     <>
+      {showBairro && (
       <div className="space-y-2 sm:col-span-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-foreground">
@@ -107,12 +113,12 @@ export function BairroZonaFields({
           </FormSelect>
         )}
       </div>
+      )}
 
+      {showZona && (
       <div className="space-y-2 sm:col-span-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-foreground">
-            Zona eleitoral <span className="text-red-500">*</span>
-          </span>
+          <span className="text-sm font-medium text-foreground">Zona eleitoral</span>
           {cidadeId && zonas.length > 0 && (
             <button
               type="button"
@@ -129,30 +135,26 @@ export function BairroZonaFields({
         </div>
 
         {!cidadeId ? (
-          <p className="text-sm text-muted">Selecione o município primeiro.</p>
+          <p className="text-sm text-muted">Selecione o município na etapa de endereço primeiro.</p>
         ) : loadingZonas ? (
           <p className="text-sm text-muted">Carregando zonas...</p>
-        ) : modoZonaNova || zonas.length === 0 ? (
-          <>
-            <FormField
-              label="Número da zona"
-              type="number"
-              min={1}
-              required
-              error={errors.nova_zona_numero ?? errors.zona_eleitoral_id}
-              placeholder="Ex.: 100"
-              {...register("nova_zona_numero", { valueAsNumber: true })}
-            />
-            {zonas.length === 0 && (
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                Será cadastrada automaticamente ao salvar o eleitor.
-              </p>
-            )}
-          </>
+        ) : modoZonaNova ? (
+          <FormField
+            label="Número da zona"
+            type="number"
+            min={1}
+            error={errors.nova_zona_numero ?? errors.zona_eleitoral_id}
+            placeholder="Ex.: 100"
+            hint="Opcional — pode preencher depois"
+            {...register("nova_zona_numero", { valueAsNumber: true })}
+          />
+        ) : zonas.length === 0 ? (
+          <p className="text-xs text-muted">
+            Nenhuma zona cadastrada. Informe um número em &quot;Nova zona&quot; ou deixe em branco.
+          </p>
         ) : (
           <FormSelect
             label=""
-            required
             error={errors.zona_eleitoral_id}
             value={watch("zona_eleitoral_id")}
             onChange={(e) => {
@@ -160,7 +162,7 @@ export function BairroZonaFields({
               setValue("nova_zona_numero", undefined);
             }}
           >
-            <option value="">Selecione a zona</option>
+            <option value="">Não informado</option>
             {zonas.map((z) => (
               <option key={z.id} value={z.id}>
                 Zona {z.numero}
@@ -168,7 +170,17 @@ export function BairroZonaFields({
             ))}
           </FormSelect>
         )}
+        {cidadeId && zonas.length > 0 && !modoZonaNova && (
+          <button
+            type="button"
+            className="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+            onClick={() => setModoZonaNova(true)}
+          >
+            Informar número de nova zona
+          </button>
+        )}
       </div>
+      )}
     </>
   );
 }

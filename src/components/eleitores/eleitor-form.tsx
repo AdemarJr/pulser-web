@@ -67,7 +67,7 @@ type EnderecoCepResponse = {
 const cadastroSteps = [
   { title: "Dados", description: "Identificação e contato" },
   { title: "Endereço", description: "CEP, cidade e bairro" },
-  { title: "Eleitoral", description: "Título, zona e seção" },
+  { title: "Eleitoral", description: "Opcional — título, zona e seção" },
   { title: "Extras", description: "Organização e observações" },
   { title: "Revisão", description: "Confira antes de salvar" },
 ] as const;
@@ -539,8 +539,6 @@ export function EleitorForm({
         "cidade_id",
         "bairro_id",
         "novo_bairro_nome",
-        "zona_eleitoral_id",
-        "nova_zona_numero",
       ];
     }
 
@@ -549,9 +547,8 @@ export function EleitorForm({
         "titulo_eleitor",
         "secao_eleitoral",
         "municipio_eleitoral",
-        "situacao_eleitoral",
-        "situacao",
-        "local_votacao",
+        "zona_eleitoral_id",
+        "nova_zona_numero",
       ];
     }
 
@@ -783,6 +780,7 @@ export function EleitorForm({
             watch={watch}
             setValue={setValue}
             errors={errors}
+            variant="bairro"
           />
         </CardContent>
       </Card>
@@ -792,12 +790,15 @@ export function EleitorForm({
       <Card>
         <CardHeader>
           <CardTitle>Dados eleitorais</CardTitle>
+          <p className="text-sm text-muted">
+            Opcional. Você pode salvar o cadastro e completar o título de eleitor depois.
+          </p>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <FormField
             label="Título de eleitor"
-            required
             error={errors.titulo_eleitor}
+            hint="Opcional"
             value={watch("titulo_eleitor")}
             onChange={(e) =>
               setValue("titulo_eleitor", maskTituloEleitor(e.target.value), { shouldValidate: true })
@@ -805,8 +806,8 @@ export function EleitorForm({
           />
           <FormField
             label="Seção"
-            required
             error={errors.secao_eleitoral}
+            hint="Opcional"
             value={watch("secao_eleitoral")}
             onChange={(e) =>
               setValue("secao_eleitoral", maskSecao(e.target.value), { shouldValidate: true })
@@ -814,9 +815,21 @@ export function EleitorForm({
           />
           <FormField
             label="Município eleitoral"
-            required
             error={errors.municipio_eleitoral}
+            hint="Opcional — preenchido automaticamente pelo endereço quando possível"
             {...register("municipio_eleitoral")}
+          />
+          <BairroZonaFields
+            cidadeId={cidadeId}
+            bairros={bairros}
+            zonas={zonas}
+            loadingBairros={loadingBairros}
+            loadingZonas={loadingZonas}
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            errors={errors}
+            variant="zona"
           />
           <FormSelect
             label="Situação eleitoral"

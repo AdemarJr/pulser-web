@@ -3,12 +3,32 @@ import {
   cepSchema,
   cpfSchema,
   emailOpcionalSchema,
-  isValidCPF,
   nomeSchema,
   telefoneOpcionalSchema,
   telefoneSchema,
   uuidRequired,
 } from "@/lib/validators/common";
+
+const tituloEleitorOpcional = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ?? "").replace(/\D/g, ""))
+  .refine((v) => v === "" || v.length >= 12, "Título de eleitor inválido");
+
+const secaoEleitoralOpcional = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ?? "").replace(/\D/g, ""))
+  .refine((v) => v === "" || (v.length >= 1 && v.length <= 4), "Seção inválida");
+
+const municipioEleitoralOpcional = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => v ?? "");
 
 const eleitorCamposComuns = {
   nome_completo: nomeSchema,
@@ -35,17 +55,9 @@ const eleitorCamposComuns = {
   cidade_cadastro_id: uuidRequired("Cidade do cadastro"),
   cidade_id: uuidRequired("Município do eleitor"),
   estado_id: uuidRequired("Estado"),
-  titulo_eleitor: z
-    .string()
-    .min(1, "Título obrigatório")
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length >= 12, "Título de eleitor inválido"),
-  secao_eleitoral: z
-    .string()
-    .min(1, "Seção obrigatória")
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length >= 1 && v.length <= 4, "Seção inválida"),
-  municipio_eleitoral: z.string().trim().min(2, "Município eleitoral obrigatório"),
+  titulo_eleitor: tituloEleitorOpcional,
+  secao_eleitoral: secaoEleitoralOpcional,
+  municipio_eleitoral: municipioEleitoralOpcional,
   situacao_eleitoral: z
     .enum(["regular", "suspensa", "cancelada", "pendente", "outra"])
     .default("regular"),
@@ -64,31 +76,27 @@ const eleitorCamposComuns = {
 export const eleitorPersistSchema = z.object({
   ...eleitorCamposComuns,
   bairro_id: uuidRequired("Bairro"),
-  zona_eleitoral_id: uuidRequired("Zona eleitoral"),
+  zona_eleitoral_id: z.string().uuid().nullable().optional(),
+  titulo_eleitor: z.string().nullable(),
+  secao_eleitoral: z.string().nullable(),
+  municipio_eleitoral: z.string().nullable(),
 });
 
-export const eleitorSchema = z.object({
-  ...eleitorCamposComuns,
-  bairro_id: z.string().uuid().optional().or(z.literal("")),
-  novo_bairro_nome: z.string().trim().max(150).optional().or(z.literal("")),
-  zona_eleitoral_id: z.string().uuid().optional().or(z.literal("")),
-  nova_zona_numero: z.coerce.number().int().positive().optional(),
-})
+export const eleitorSchema = z
+  .object({
+    ...eleitorCamposComuns,
+    bairro_id: z.string().uuid().optional().or(z.literal("")),
+    novo_bairro_nome: z.string().trim().max(150).optional().or(z.literal("")),
+    zona_eleitoral_id: z.string().uuid().optional().or(z.literal("")),
+    nova_zona_numero: z.coerce.number().int().positive().optional(),
+  })
   .superRefine((data, ctx) => {
     const temBairro = Boolean(data.bairro_id) || Boolean(data.novo_bairro_nome?.trim());
-    const temZona = Boolean(data.zona_eleitoral_id) || Boolean(data.nova_zona_numero);
     if (!temBairro) {
       ctx.addIssue({
         code: "custom",
         path: ["bairro_id"],
         message: "Selecione um bairro ou informe o nome de um novo",
-      });
-    }
-    if (!temZona) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["zona_eleitoral_id"],
-        message: "Selecione uma zona ou informe o número de uma nova",
       });
     }
   });

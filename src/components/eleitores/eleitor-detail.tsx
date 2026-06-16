@@ -132,10 +132,13 @@ export function EleitorDetail({ eleitor, auth, onDelete, deleting }: Props) {
       </Section>
 
       <Section title="Dados eleitorais">
-        <Field label="Título" value={maskTituloEleitor(eleitor.titulo_eleitor)} />
-        <Field label="Zona eleitoral" value={String(zona)} />
-        <Field label="Seção" value={eleitor.secao_eleitoral} />
-        <Field label="Município eleitoral" value={eleitor.municipio_eleitoral} />
+        <Field
+          label="Título"
+          value={eleitor.titulo_eleitor ? maskTituloEleitor(eleitor.titulo_eleitor) : "—"}
+        />
+        <Field label="Zona eleitoral" value={zona !== "—" ? String(zona) : "—"} />
+        <Field label="Seção" value={eleitor.secao_eleitoral ?? "—"} />
+        <Field label="Município eleitoral" value={eleitor.municipio_eleitoral ?? "—"} />
         <Field label="Situação eleitoral" value={eleitor.situacao_eleitoral} />
         <Field label="Local de votação" value={eleitor.local_votacao ?? "—"} />
         <Field label="Prioridade" value={String(eleitor.prioridade ?? 0)} />

@@ -65,3 +65,16 @@ export async function resolveZonaId(
   if (error) throw new Error(error.message);
   return created.id;
 }
+
+/** Retorna null quando zona não foi informada (cadastro sem carteira de eleitor). */
+export async function resolveZonaIdOpcional(
+  supabase: SupabaseClient,
+  cidadeId: string,
+  estadoId: string,
+  zonaId?: string,
+  novoNumero?: number
+): Promise<string | null> {
+  if (zonaId) return zonaId;
+  if (!novoNumero || novoNumero < 1) return null;
+  return resolveZonaId(supabase, cidadeId, estadoId, undefined, novoNumero);
+}
